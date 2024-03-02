@@ -1,0 +1,49 @@
+PRODUCT create 101 Phone Smartphone 799.99 50
+PRODUCT create 102 Laptop GamingLaptop 1200.00 30
+PRODUCT create 103 Headphones WirelessHeadphones 299.99 100
+PRODUCT create 101 Camera DSLRCamera 500.00 20
+PRODUCT create 104  Smartwatch 399.99 40
+PRODUCT create 105 Smartwatch  399.99 40
+PRODUCT create 106 Smartwatch HealthTracking -399.99 40
+PRODUCT create 107 Smartwatch HealthTracking 399.99 -40
+PRODUCT create -1 Smartwatch HealthTracking 399.99 40
+
+PRODUCT info 101
+PRODUCT info 102
+PRODUCT info 999
+PRODUCT info -1
+
+PRODUCT update 101 name:PhoneX description:UpdatedModel price:899.99 quantity:60
+PRODUCT info 101
+
+PRODUCT update 102 name:LaptopPro
+PRODUCT info 102
+PRODUCT update 102 description:EnhancedGaming price:1300.00
+PRODUCT info 102
+
+PRODUCT update 103 quantity:150
+PRODUCT info 103
+
+PRODUCT update 104 name:a
+PRODUCT update 104 description:b
+PRODUCT update 104 price:-500.00
+PRODUCT update 104 quantity:-20
+
+PRODUCT update 999 name:Nonexistent description:DoesNotExist price:100.00 quantity:10
+PRODUCT update -1 name:InvalidID
+
+PRODUCT delete 101 PhoneX 899.99 60
+PRODUCT info 101
+PRODUCT info 102
+PRODUCT delete 102 LaptopPro 1300.00 30
+PRODUCT info 102
+
+PRODUCT delete 103 WrongName 299.99 150
+PRODUCT delete 103 Headphones -299.99 150
+PRODUCT delete 103 Headphones 299.99 -150
+PRODUCT info 103
+PRODUCT delete 103 Headphones 299.99 150
+PRODUCT info 103
+
+PRODUCT delete 999 Nonexistent 100.00 10
+shutdown
