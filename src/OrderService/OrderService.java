@@ -66,6 +66,16 @@ public class OrderService {
                 stmt.execute(sql);
                 System.out.println("Table 'orders' created.");
             }
+            try (Statement stmt = conn.createStatement()) {
+                String sql = "CREATE TABLE orders1 (" +
+                        "id INTEGER PRIMARY KEY," +
+                        "product_id INTEGER NOT NULL," +
+                        "user_id INTEGER NOT NULL," +
+                        "quantity INTEGER NOT NULL," +
+                        "status TEXT NOT NULL)";
+                stmt.execute(sql);
+                System.out.println("Table 'orders1' created.");
+            }
         }
     }
 
@@ -220,16 +230,17 @@ public class OrderService {
                                 }
                                 break;
                             case "start":
-                                clearTableData(connection,"users");
-                                move_table(connection,"users1","users");
+                                clearTableData(connection,"orders");
+                                move_table(connection,"orders1","orders");
                                 JSONObject responseData1 = new JSONObject();
                                 responseData1.put("command", "restart");
                                 sendResponse(exchange, responseData1.toString(), 200);
                                 exchange.close();
                                 break;
                             case "shutdown":
-                                clearTableData(connection,"users1");
-                                move_table(connection,"users","users1");
+                                clearTableData(connection,"orders1");
+                                move_table(connection,"orders","orders1");
+                                clearTableData(connection,"orders");
                                 JSONObject responseData1 = new JSONObject();
                                 responseData1.put("command", "shutdown");
                                 sendResponse(exchange, responseData1.toString(), 200);

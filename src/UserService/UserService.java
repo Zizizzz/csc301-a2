@@ -220,6 +220,7 @@ public class UserService {
                         case "shutdown":
                             clearTableData(connection,"users1");
                             move_table(connection,"users","users1");
+                            clearTableData(connection,"users");
                             JSONObject responseData1 = new JSONObject();
                             responseData1.put("command", "shutdown");
                             sendResponse(exchange, responseData1.toString(), 200);

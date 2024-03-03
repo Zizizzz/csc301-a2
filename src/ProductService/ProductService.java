@@ -60,6 +60,16 @@ public class ProductService {
                 stmt.execute(sql);
                 System.out.println("Table 'products' created.");
             }
+            try (Statement stmt = conn.createStatement()) {
+                String sql = "CREATE TABLE products1 (" +
+                        "id INTEGER PRIMARY KEY," +
+                        "name TEXT NOT NULL," +
+                        "description TEXT," +
+                        "price DECIMAL(10, 2) NOT NULL," +
+                        "quantity INTEGER NOT NULL)";
+                stmt.execute(sql);
+                System.out.println("Table 'products1' created.");
+            }
         }
     }
 
@@ -199,16 +209,17 @@ public class ProductService {
                             exchange.close();
                             break;
                         case "start":
-                            clearTableData(connection,"users");
-                            move_table(connection,"users1","users");
+                            clearTableData(connection,"products");
+                            move_table(connection,"products1","products");
                             JSONObject responseData1 = new JSONObject();
                             responseData1.put("command", "restart");
                             sendResponse(exchange, responseData1.toString(), 200);
                             exchange.close();
                             break;
                         case "shutdown":
-                            clearTableData(connection,"users1");
-                            move_table(connection,"users","users1");
+                            clearTableData(connection,"products1");
+                            move_table(connection,"products","products1");
+                            clearTableData(connection,"products");
                             JSONObject responseData1 = new JSONObject();
                             responseData1.put("command", "shutdown");
                             sendResponse(exchange, responseData1.toString(), 200);
