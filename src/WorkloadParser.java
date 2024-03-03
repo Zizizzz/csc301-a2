@@ -37,7 +37,7 @@ public class WorkloadParser {
 
                             handlePOST(listData.toArray(new String[0]), url);
                         }
-                    }else if (!dataElements[0].equals("restart") && !dataElements[0].isEmpty()) {
+                    }else if (dataElements[0].equals("restart")) {
                         // Sent restart POST request
                         for (String serverName : serverNames) {
                             ArrayList<String> listData = new ArrayList<>();

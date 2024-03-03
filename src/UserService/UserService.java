@@ -66,16 +66,14 @@ public class UserService {
                 stmt.execute(sql);
                 System.out.println("Table 'users' created.");
             }
-        }
-    }
-
-    private static void clearAllTablesData(Connection conn) throws SQLException {
-        DatabaseMetaData dbm = conn.getMetaData();
-        String[] types = {"TABLE"};
-        try (ResultSet tables = dbm.getTables(null, null, "%", types)) {
-            while (tables.next()) {
-                String tableName = tables.getString("TABLE_NAME");
-                clearTableData(conn, tableName);
+            try (Statement stmt = conn.createStatement()) {
+                String sql = "CREATE TABLE users1 (" +
+                        "id INTEGER PRIMARY KEY," +
+                        "username TEXT NOT NULL," +
+                        "email TEXT NOT NULL," +
+                        "password TEXT NOT NULL)";
+                stmt.execute(sql);
+                System.out.println("Table 'users1' created.");
             }
         }
     }
@@ -86,6 +84,30 @@ public class UserService {
             stmt.executeUpdate(sql);
             System.out.println("Data cleared from table '" + tableName + "'.");
         }
+    }
+    private static boolean move_table(Connection conn, String old_table, String new_table) throws SQLException {
+        if (isTableEmpty(connection, old_table)) {
+            // If old_table is empty, return "success" since there's nothing to move
+            return true;
+        }
+        String moveSql = "INSERT INTO " + new_table + " SELECT * FROM " + old_table;
+
+        try (PreparedStatement moveStatement = connection.prepareStatement(moveSql)) {
+            // Execute the SQL statement to move entities
+            int rowsAffected = moveStatement.executeUpdate();
+            return rowsAffected > 0;
+        }
+    }
+    private static boolean isTableEmpty(Connection connection, String table) throws SQLException {
+        // Construct SQL statement to count rows in the table
+        String countSql = "SELECT COUNT(*) FROM " + table;
+
+        try (PreparedStatement countStatement = connection.prepareStatement(countSql);
+             ResultSet resultSet = countStatement.executeQuery()) {
+            // Check if the count is 0 (table is empty)
+            return resultSet.next() && resultSet.getInt(1) == 0;
+        }
+        
     }
 
 
@@ -188,13 +210,19 @@ public class UserService {
                             exchange.close();
                             break;
                         case "start":
-                            clearAllTablesData(connection);
-                            sendResponse(exchange, "Rebuild DB", 200);
+                            clearTableData(connection,"users");
+                            move_table(connection,"users1","users");
+                            JSONObject responseData1 = new JSONObject();
+                            responseData1.put("command", "restart");
+                            sendResponse(exchange, responseData1.toString(), 200);
                             exchange.close();
                             break;
                         case "shutdown":
-                            System.out.println("Exit");
-                            sendResponse(exchange, "Exit", 200);
+                            clearTableData(connection,"users1");
+                            move_table(connection,"users","users1");
+                            JSONObject responseData1 = new JSONObject();
+                            responseData1.put("command", "shutdown");
+                            sendResponse(exchange, responseData1.toString(), 200);
                             exchange.close();
                             System.exit(1);
                             break;
