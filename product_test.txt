@@ -1,0 +1,42 @@
+PRODUCT create 2000 product2000 Thisisproduct2000 162.58 90
+PRODUCT create 2001 product2001 Thisisproduct2001 202.66 60
+PRODUCT create 2002 product2002 Thisisproduct2002 98.47 96
+PRODUCT create 2003 product2003 Thisisproduct2003 197.51 3
+PRODUCT create 2004 product2004 Thisisproduct2004 98.61 26
+PRODUCT create 2005 product2005 Thisisprodut2005 152.70 34
+PRODUCT create 2006 product2006 Thisisprodut2006 269.23 89
+PRODUCT create 2007 product2007 Thisisprodut2007 79.18 89
+PRODUCT create 2008 product2008 Thisisprodut2008 152.70 34
+PRODUCT create 2009 product2009 Thisisprodut2009 152.70 34
+PRODUCT create 2010 product2010 Thisisprodut2010 152.70 34
+PRODUCT create 2011 product2011 Thisisprodut2011 152.70 34
+PRODUCT create 2012 product2012 Thisisprodut2012 152.70 34
+PRODUCT create 2013 product2013 Thisisprodut2013 152.70 34
+PRODUCT create 2014 product2014 Thisisprodut2014 152.70 34
+PRODUCT create 2015 product2015 Thisisprodut2015 152.70 34
+PRODUCT create 2016 product2016 Thisisprodut2016 152.70 34
+PRODUCT create 2017 product2017 Thisisprodut2017 152.70 34
+PRODUCT create 2018 product2018 Thisisprodut2018 152.70 34
+PRODUCT create 2024 Thisisprodut2024 2.3 4
+PRODUCT create 2025 product2025 2.3 4
+PRODUCT create 2026 product2026 Thisisproduct2026 5.0 0.5597
+PRODUCT create 2027 product2027 Thisisproduct2027 5.0 -4
+PRODUCT create 2028 product2028 Thisisproduct2028 -5.0 4
+PRODUCT create 2000 product2000-duplicate Thisisaduplicateproduct2000 5.0 9
+PRODUCT update 2001 name:product2001-update description:Thisisproduct2001version2 price:199.99 quantity:100
+PRODUCT update name:product2002invalidupdate
+PRODUCT update 2003 description:""
+PRODUCT update 2004 price:-6.0
+PRODUCT update 2005 quantity:-6
+PRODUCT update 2006 quantity:0.6
+PRODUCT update 10000 description:DNE
+PRODUCT delete 2007 product2007 79.18 89
+PRODUCT delete 2008 77.68 79
+PRODUCT delete 10000 product10000 2.3 4
+PRODUCT delete 2009 product2009 280.0 71
+PRODUCT info 2001
+PRODUCT info 2010
+PRODUCT info abcd
+PRODUCT info 2007
+PRODUCT info 10000
+
