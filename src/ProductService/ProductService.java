@@ -220,9 +220,9 @@ public class ProductService {
                             clearTableData(connection,"products1");
                             move_table(connection,"products","products1");
                             clearTableData(connection,"products");
-                            JSONObject responseData1 = new JSONObject();
-                            responseData1.put("command", "shutdown");
-                            sendResponse(exchange, responseData1.toString(), 200);
+                            JSONObject responseData2 = new JSONObject();
+                            responseData2.put("command", "shutdown");
+                            sendResponse(exchange, responseData2.toString(), 200);
                             exchange.close();
                             System.exit(1);
                             break;

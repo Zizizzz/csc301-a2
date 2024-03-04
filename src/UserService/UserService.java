@@ -221,9 +221,9 @@ public class UserService {
                             clearTableData(connection,"users1");
                             move_table(connection,"users","users1");
                             clearTableData(connection,"users");
-                            JSONObject responseData1 = new JSONObject();
-                            responseData1.put("command", "shutdown");
-                            sendResponse(exchange, responseData1.toString(), 200);
+                            JSONObject responseData2 = new JSONObject();
+                            responseData2.put("command", "shutdown");
+                            sendResponse(exchange, responseData2.toString(), 200);
                             exchange.close();
                             System.exit(1);
                             break;

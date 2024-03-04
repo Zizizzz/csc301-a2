@@ -247,9 +247,9 @@ public class OrderService {
                                 clearTableData(connection,"orders1");
                                 move_table(connection,"orders","orders1");
                                 clearTableData(connection,"orders");
-                                JSONObject responseData1 = new JSONObject();
-                                responseData1.put("command", "shutdown");
-                                sendResponse(exchange, responseData1.toString(), 200);
+                                JSONObject responseData2 = new JSONObject();
+                                responseData2.put("command", "shutdown");
+                                sendResponse(exchange, responseData2.toString(), 200);
                                 exchange.close();
                                 System.exit(1);
                                 break;
