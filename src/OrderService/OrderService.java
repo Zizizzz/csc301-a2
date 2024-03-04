@@ -11,6 +11,7 @@ import java.nio.charset.StandardCharsets;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.Executors;
 
 import org.json.simple.JSONObject;
@@ -37,6 +38,7 @@ public class OrderService {
             server.setExecutor(Executors.newFixedThreadPool(20)); // Adjust the pool size as needed
             server.createContext("/order", new PostHandler(config.get("us").toString(), config.get("ps").toString()));
 
+            server.createContext("/user/purchased", new GetHandler(config.get("us").toString()));
             server.createContext("/user", new UserHandler(config.get("us").toString()));
             server.createContext("/product", new ProductHandler(config.get("ps").toString()));
 
@@ -174,6 +176,7 @@ public class OrderService {
                     JSONParser jsonParser = new JSONParser();
                     JSONObject requestData = (JSONObject) jsonParser.parse(new String(requestBody.readAllBytes()));
                     String[] keyNames = {"product_id", "user_id", "quantity"};
+                    Map<String, String> responseData = new HashMap<>();
                     int responseCode = 200;
                     if (requestData.get("command") != null){
                         String command = requestData.get("command").toString();
@@ -184,47 +187,50 @@ public class OrderService {
                                         responseCode = 400;
                                         sendResponse(exchange, "Bad request " + requestData.toString(), 400);
                                         exchange.close();
+                                    } else {
+                                        responseData.put(keyName, requestData.get(keyName).toString());
                                     }
                                 }
                                 if (responseCode != 400){
-                                    String productId = requestData.get("product_id").toString();
+                                    int quantity = Integer.parseInt(responseData.get("quantity"));
 
-                                    String userId = requestData.get("user_id").toString();
-
-                                    int quantity = Integer.parseInt(requestData.get("quantity").toString());
-
-                                    int orderId = getOrderAmount() + 1;
-                                    String response = "Order id: " + orderId + ", User id: " + userId + ", Product id: " + productId + ", Status: ";
-                                    if (userExist(userId)){
-                                        Map<String, String> productInfo = getProductInfo(productId);
+                                    if (userExist(responseData.get("user_id"))){
+                                        Map<String, String> productInfo = getProductInfo(responseData.get("product_id"));
                                         if (productInfo.get("code").equals("200")){
                                             int productQuantity = Integer.parseInt(productInfo.get("quantity"));
                                             if (productQuantity == -1){
                                                 System.out.println("Product quantity does not exist");
-                                                response = response + "InvalidRequest.";
-                                                sendResponse(exchange, response + " Product quantity does not exist.", 400);
+                                                responseData.put("status", "Invalid Request");
+                                                sendResponse(exchange, responseData.toString(), 400);
                                                 exchange.close();
                                             } else{
                                                 if (quantity > productQuantity){
-                                                    response = response + "Exceeded quantity limit";
-                                                    sendResponse(exchange, response, 409);
+                                                     responseData.put("status", "Exceeded quantity limit");
+                                                    sendResponse(exchange, responseData.toString(), 409);
                                                     exchange.close();
                                                 } else{
-                                                    response = response + "Success.";
-                                                    sendResponse(exchange, response, 200);
-                                                    exchange.close();
+                                                    responseCode = handleCreateOrder(requestData);
+                                                    if (responseCode == 200){
+                                                        responseData.put("status", "Success");
+                                                        sendResponse(exchange, responseData.toString(), responseCode);
+                                                        exchange.close();
+                                                    } else {
+                                                        responseData.put("status", "Invalid Request");
+                                                        sendResponse(exchange, responseData.toString(), 400);
+                                                        exchange.close();
+                                                    }
                                                 }
                                             }
                                         } else{
                                             System.out.println("Product does not exist");
-                                            response = response + "InvalidRequest.";
-                                            sendResponse(exchange, response + " Product does not exist.", 400);
+                                            responseData.put("status", "Invalid Request");
+                                            sendResponse(exchange, responseData.toString(), 400);
                                             exchange.close();
                                         }
                                     } else{
                                         System.out.println("User does not exist");
-                                        response = response + "InvalidRequest.";
-                                        sendResponse(exchange, response + "User does not exist.", 400);
+                                        responseData.put("status", "Invalid Request");
+                                        sendResponse(exchange, responseData.toString(), 400);
                                         exchange.close();
                                     }
                                 }
@@ -340,6 +346,124 @@ public class OrderService {
             return quantity;
         }
 
+        private static int handleCreateOrder(JSONObject requestData) throws SQLException {
+            // Implement user creation logic
+            int responseCode = 200;
+            int orderId = getOrderAmount() + 1;
+            int userId = Integer.parseInt(requestData.get("user_id").toString());
+            int productId = Integer.parseInt(requestData.get("product_id").toString());
+            int quantity = Integer.parseInt(requestData.get("quantity").toString());
+
+            String insertQuery = "INSERT INTO orders (id, user_id, product_id, quantity) VALUES (?, ?, ?, ?)";
+                try (PreparedStatement preparedStatement = connection.prepareStatement(insertQuery)) {
+                    preparedStatement.setInt(1, orderId);
+                    preparedStatement.setInt(2, userId);
+                    preparedStatement.setInt(3, productId);
+                    preparedStatement.setInt(4, quantity);
+
+                    int rowsAffected = preparedStatement.executeUpdate();
+                    if (rowsAffected == 1) {
+                        System.out.println("Successfully create new order: " + requestData.toString());
+                    }
+                } catch (Exception e){
+                    responseCode = 400;
+                    e.printStackTrace();
+                    System.out.println("Failed to create order: " + requestData.toString());
+                }
+
+            return responseCode;
+        }
+
+    }
+
+    static class GetHandler implements HttpHandler {
+        private static String upath;
+
+        // Constructor that takes a string <UserService location> during initialization
+        public GetHandler(String upath) {
+            this.upath = upath;
+        }
+        public void handle(HttpExchange exchange){
+            // Handle post request for /user
+            try {
+                if ("GET".equals(exchange.getRequestMethod())) {
+                    String path = exchange.getRequestURI().getPath();
+                    String[] pathSegments = path.split("/");
+                    if (pathSegments.length < 4){
+                        sendResponse(exchange, "Incorrect Get request", 400);
+                        exchange.close();
+                    } else{
+                        if (userExist(pathSegments[3])){
+                            Map<String, String> response = handleGetOrder(Integer.parseInt(pathSegments[3]));
+                            if (Objects.equals(response.get("code"), "200")){
+                                sendResponse(exchange, response.get("data"), 200);
+                                exchange.close();
+                            } else {
+                                sendResponse(exchange, "Bad request", Integer.parseInt(response.get("code")));
+                                exchange.close();
+                            }
+                        } else {
+                            sendResponse(exchange, "User not found", 404);
+                            exchange.close();
+                        }
+                    }
+                } else {
+                    exchange.sendResponseHeaders(405, 0);
+                    exchange.close();
+                }
+            } catch(Exception e){
+                e.printStackTrace();
+                sendResponse(exchange, "Bad request: Exception. " + exchange.getRequestBody().toString(), 400);
+                exchange.close();
+            }
+        }
+
+        private static boolean userExist(String userId){
+            boolean exist = false;
+            try {
+                URL url = new URL(upath + "/" + userId);
+
+                HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+
+                connection.setRequestMethod("GET");
+
+                int responseCode = connection.getResponseCode();
+                if (responseCode == 200){
+                    exist = true;
+                }
+            } catch (Exception e){
+                e.printStackTrace();
+            }
+            return exist;
+        }
+
+        private static Map<String, String> handleGetOrder(int userId) {
+            // Implement user retrieval logic
+            Map<String, String> response = new HashMap<>();
+            Map<String, String> responseData = new HashMap<>();
+            String responseCode = "";
+            // Prepare the SQL query
+            String sql = "SELECT product_id, SUM(quantity) as total_quantity FROM orders WHERE user_id = ? GROUP BY product_id";
+            try (PreparedStatement preparedStatement = connection.prepareStatement(sql)) {
+                // Set the user ID parameter
+                preparedStatement.setInt(1, userId);
+
+                // Execute the query
+                try (ResultSet resultSet = preparedStatement.executeQuery()) {
+                    while (resultSet.next()) {
+                        int productId = resultSet.getInt("product_id");
+                        int totalQuantity = resultSet.getInt("total_quantity");
+                        responseData.put(String.valueOf(productId), String.valueOf(totalQuantity));
+                    }
+                }
+            } catch (Exception e) {
+                responseCode = "400";
+                e.printStackTrace();
+            }
+            response.put("data", responseData.toString());
+            response.put("code", responseCode);
+            return response;
+        }
     }
 
     static class UserHandler implements HttpHandler {
