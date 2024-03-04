@@ -1,0 +1,47 @@
+USER create 2 username2NKlLXs elOf@Y4vxdHuRs2620f.com bY3NAKPS
+USER create 3 usernameKPTgmeH gOmaQKKw
+USER create 3 usernameKPTgmeH 36a9@hbCa.com gOmaQKKw
+USER create 3 a b c
+USER create 1 usernameFw5hdTh CYDJ@vMLrNA.com GMmhdr6J
+USER get 2
+USER update 2 username:un-4Vofkp8EyolNJYJ email:glud@Ucdl4s6HBjq.com password:BkPpkkW1
+USER delete 2 username2NKlLXs elOf@Y4vxdHuRs2620f.com bY3NAKPS
+USER delete 2 username2NKlLXs elOf@Y4vxdHuRs2620f.com
+USER delete 2 4Vofkp8EyolNJYJ glud@Ucdl4s6HBjq.com BkPpkkW1
+USER get 1
+USER get 3
+USER update 3 username:un-BhxQtm2AAJZZAt3 email:ZwN1@ABiDLCNO9T.com password:wDkglEM2
+USER update 1 username:un-6l2yS4n2P2PB77s email:TRhU@L3aKAYoMS8.com password:UpX6pI0F
+USER get 1
+USER update 2
+USER delete 2 xHZQFlTI1Tx7dHO UGI7@LXnyAw.com z87aXnEM
+USER update 2 username:un-HofHCZu5GlVLLLz email:CDj0@n9HUYJpUuY.com password:0S0YJnb5
+USER update 2 username:un-j2ejWGkAd3Rzv4C email:rPhV@NypRd7qmDMKda.com password:9cxYT5iV
+USER get 2
+PRODUCT create 2 apple Doctor'sFavfruit 2
+PRODUCT create 2 apple Doctor'sFavfruit 2 1000
+PRODUCT info 4
+PRODUCT info 1
+PRODUCT create 1 peach sweetjuicy 5 600
+PRODUCT update 2 name:banana price:5
+PRODUCT update 2 name:pear price:10 quantity:60
+PRODUCT delete 2 pear Doctor'sFavfruit 10 60
+PRODUCT info 2
+PRODUCT info 1
+PRODUCT delete 9 pear 10 60
+PRODUCT delete 3 apple 10 60 a
+PRODUCT delete 2 pear Doctor'sFavfruit 1 60
+PRODUCT delete 2 pear
+USER create 11 usernameFw5hdTh CYDJ@vMLrNA.com GMmhdr6J
+ORDER place 2 11 200
+PRODUCT info 2
+ORDER place 1 1 2000
+ORDER place 2 6 2000
+ORDER place 9993 1 3
+ORDER place 1 2 200
+PRODUCT info 1
+PRODUCT update 9 name:pear price:10
+PRODUCT info 9
+USER delete 2 un-j2ejWGkAd3Rzv4C rPhV@NypRd7qmDMKda.com 9cxYT5iV
+USER delete 3 un-BhxQtm2AAJZZAt3 ZwN1@ABiDLCNO9T.com wDkglEM2
+USER delete 1 un-6l2yS4n2P2PB77s TRhU@L3aKAYoMS8.com UpX6pI0F
