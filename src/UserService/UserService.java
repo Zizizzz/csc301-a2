@@ -129,6 +129,7 @@ public class UserService {
     static class UserHandler implements HttpHandler {
         @Override
         public void handle(HttpExchange exchange){
+            String failedJSON = "{}";
             try {
                 // Handle POST request for /user
                 if ("POST".equals(exchange.getRequestMethod())) {
@@ -152,61 +153,72 @@ public class UserService {
                                 }
                             }
                             if (responseCode == 400){
-                                badCreateRequest = badCreateRequest.substring(0, badCreateRequest.length() - 2) + " missing. ";
-                                sendResponse(exchange, badCreateRequest + responseData.toString(), responseCode);
+                                badCreateRequest = badCreateRequest.substring(0, badCreateRequest.length() - 2) +
+                                        " missing. " + requestData.toString();
+                                System.out.println(badCreateRequest);
+                                sendResponse(exchange, failedJSON, responseCode);
                                 exchange.close();
                                 break;
                             }
                             responseCode = handleCreateUser(requestData);
                             if (responseCode == 409){
-                                String duplicateUser = "Duplicate user already exist. ";
-                                sendResponse(exchange, duplicateUser + responseData.toString(), responseCode);
+                                System.out.println("Duplicate user already exist. " + requestData.toString());
+                                sendResponse(exchange, failedJSON, responseCode);
                                 exchange.close();
                                 break;
                             } else if (responseCode == 400){
-                                sendResponse(exchange, "Bad Request: Exception appear. " + responseData.toString(), responseCode);
+                                System.out.println("Bad Request: Exception appear. " + requestData.toString());
+                                sendResponse(exchange, failedJSON, responseCode);
                                 exchange.close();
                                 break;
                             } else{
-                                sendResponse(exchange, "Successfully create new user: " + responseData.toString(), responseCode);
+                                sendResponse(exchange, responseData.toString(), responseCode);
                                 exchange.close();
                                 break;
                             }
                         case "update":
                             if (requestData.get("id") == null){
                                 responseCode = 400;
-                                String badUpdateRequest = "Bad request: Missing user id. ";
-                                System.out.println(badUpdateRequest);
-                                sendResponse(exchange, badUpdateRequest + responseData.toString(), responseCode);
+                                String badUpdateRequest = "Bad request: Missing user id.";
+                                System.out.println(badUpdateRequest + requestData);
+                                sendResponse(exchange, failedJSON, responseCode);
                                 exchange.close();
                                 break;
                             }
                             responseCode = handleUpdateUser(requestData);
                             if (responseCode == 400){
-                                sendResponse(exchange, "Bad Request: Exception appear. " + responseData.toString(), responseCode);
+                                System.out.println("Bad Request: Exception appear. " + responseData.toString());
+                                sendResponse(exchange, failedJSON, responseCode);
                                 exchange.close();
                             } else if (responseCode == 404){
-                                sendResponse(exchange, "User not Found. " + responseData.toString(), responseCode);
+                                System.out.println("User not Found. " + responseData.toString());
+                                sendResponse(exchange, failedJSON, responseCode);
                                 exchange.close();
                             } else{
-                                sendResponse(exchange, "Successfully update new user: " + responseData.toString(), responseCode);
-                                exchange.close();
+                                Map<String, String> fullUserInfo = handleGetUser(Integer.parseInt(requestData.get("id").toString()));
+                                if (Objects.equals(fullUserInfo.get("code"), "200")){
+                                    sendResponse(exchange, fullUserInfo.get("message"), responseCode);
+                                    exchange.close();
+                                } else{
+                                    System.out.println("Failed to get the updated user.");
+                                    sendResponse(exchange, failedJSON, 400);
+                                    exchange.close();
+                                }
                             }
                             break;
                         case "delete":
                             for (String keyName: keyNames){
-
                                 if (requestData.get(keyName) == null){
                                     responseCode = 400;
                                 }
                             }
                             if (responseCode == 400){
-                                sendResponse(exchange, "", responseCode);
+                                sendResponse(exchange, failedJSON, responseCode);
                                 exchange.close();
                                 break;
                             }
                             responseCode = handleDeleteUser(requestData);
-                            sendResponse(exchange, "", responseCode);
+                            sendResponse(exchange, failedJSON, responseCode);
                             exchange.close();
                             break;
                         case "start":
@@ -229,29 +241,38 @@ public class UserService {
                             break;
                         default:
                             // Handle unknown operation
-                            sendResponse(exchange, "Unknown operation: " + requestData.toString(), 400);
+                            System.out.println("Unknown operation.");
+                            sendResponse(exchange, failedJSON, 400);
                             exchange.close();
                             break;
                     }
                 } else if ("GET".equals(exchange.getRequestMethod())) {
                     String path = exchange.getRequestURI().getPath();
                     String[] pathSegments = path.split("/");
-                    if (pathSegments.length < 3){
-                        sendResponse(exchange, "Incorrect Get request", 400);
+                    if (pathSegments.length != 3){
+                        System.out.println("Incorrect Get request");
+                        sendResponse(exchange, failedJSON, 400);
                         exchange.close();
                     } else{
                         int userId = Integer.parseInt(pathSegments[2]);
                         Map<String, String> response = handleGetUser(userId);
-                        sendResponse(exchange, response.get("message"), Integer.parseInt(response.get("code")));
-                        exchange.close();
+                        if (Integer.parseInt(response.get("code")) == 200){
+                            sendResponse(exchange, response.get("message"), 200);
+                            exchange.close();
+                        } else {
+                            System.out.println(response.get("message"));
+                            sendResponse(exchange, failedJSON, Integer.parseInt(response.get("code")));
+                            exchange.close();
+                        }
                     }
                 } else {
-                    exchange.sendResponseHeaders(405, 0);
+                    System.out.println("Only accept POST or GET request.");
+                    sendResponse(exchange, failedJSON, 405);
                     exchange.close();
                 }
             } catch(Exception e){
                 e.printStackTrace();
-                sendResponse(exchange, "Bad request: Exception. " + exchange.getRequestBody().toString(), 400);
+                sendResponse(exchange, failedJSON, 400);
                 exchange.close();
             }
         }
@@ -262,6 +283,7 @@ public class UserService {
 
     private static void sendResponse(HttpExchange exchange, String response, int code){
         try {
+            exchange.getResponseHeaders().set("Content-Type", "application/json");
             exchange.sendResponseHeaders(code, response.length());
             OutputStream os = exchange.getResponseBody();
             os.write(response.getBytes(StandardCharsets.UTF_8));
@@ -270,6 +292,7 @@ public class UserService {
             e.printStackTrace();
         }
     }
+
 
     private static int handleCreateUser(JSONObject requestData) throws SQLException {
         // Implement user creation logic
@@ -395,6 +418,7 @@ public class UserService {
     private static Map<String, String> handleGetUser(int userId) {
         // Implement user retrieval logic
         Map<String, String> response = new HashMap<>();
+        Map<String, String> responseData = new HashMap<>();
         String message = "";
         String responseCode = "";
         // Prepare the SQL query
@@ -408,13 +432,13 @@ public class UserService {
                 // Check if a user was found
                 if (resultSet.next()) {
                     // Retrieve user details
-                    int retrievedUserId = resultSet.getInt("id");
-                    String username = resultSet.getString("username");
-                    String email = resultSet.getString("email");
-                    String password = resultSet.getString("password");
+                    responseData.put("id", Integer.toString(resultSet.getInt("id")));
+                    responseData.put("username", resultSet.getString("username"));
+                    responseData.put("email", resultSet.getString("email"));
+                    responseData.put("password", resultSet.getString("password"));
 
                     // Use the retrieved user data as needed
-                    message = "Get user: User ID: " + retrievedUserId + ", Username: " + username + ", Email: " + email + ", Password: " + password;
+                    message = responseData.toString();
                     responseCode = "200";
                 } else {
                     message = "User not found with ID: " + userId;

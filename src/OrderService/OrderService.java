@@ -169,6 +169,7 @@ public class OrderService {
             this.ppath = ppath;
         }
         public void handle(HttpExchange exchange){
+            String failedJSON = "{}";
             try {
                 // Handle POST request for /order
                 if ("POST".equals(exchange.getRequestMethod())) {
@@ -181,11 +182,12 @@ public class OrderService {
                     if (requestData.get("command") != null){
                         String command = requestData.get("command").toString();
                         switch (command){
-                            case "place":
+                            case "place order":
                                 for (String keyName: keyNames){
                                     if (requestData.get(keyName) == null){
                                         responseCode = 400;
-                                        sendResponse(exchange, "Bad request " + requestData.toString(), 400);
+                                        System.out.println("Bad request " + requestData.toString());
+                                        sendResponse(exchange, failedJSON, 400);
                                         exchange.close();
                                     } else {
                                         responseData.put(keyName, requestData.get(keyName).toString());
@@ -254,7 +256,7 @@ public class OrderService {
                                 System.exit(1);
                                 break;
                             default:
-                                sendResponse(exchange, "Bad request", 400);
+                                sendResponse(exchange, failedJSON, 400);
                                 exchange.close();
                         }
                     }
@@ -262,12 +264,13 @@ public class OrderService {
 
                 } else {
                     // Send a 405 Method Not Allowed response for non-POST requests
-                    sendResponse(exchange, "OrderService only accept POST request", 405);
+                    System.out.println("OrderService only accept POST request");
+                    sendResponse(exchange, failedJSON, 405);
                     exchange.close();
                 }
             } catch (Exception e) {
                 e.printStackTrace();
-                sendResponse(exchange, "Bad request: Exception. " + exchange.getRequestBody().toString(), 400);
+                sendResponse(exchange, failedJSON, 400);
                 exchange.close();
             }
         }
@@ -385,12 +388,13 @@ public class OrderService {
         }
         public void handle(HttpExchange exchange){
             // Handle post request for /user
+            String failedJSON = "{}";
             try {
                 if ("GET".equals(exchange.getRequestMethod())) {
                     String path = exchange.getRequestURI().getPath();
                     String[] pathSegments = path.split("/");
-                    if (pathSegments.length < 4){
-                        sendResponse(exchange, "Incorrect Get request", 400);
+                    if (pathSegments.length != 4){
+                        sendResponse(exchange, failedJSON, 400);
                         exchange.close();
                     } else{
                         if (userExist(pathSegments[3])){
@@ -399,21 +403,22 @@ public class OrderService {
                                 sendResponse(exchange, response.get("data"), 200);
                                 exchange.close();
                             } else {
-                                sendResponse(exchange, "Bad request", Integer.parseInt(response.get("code")));
+                                sendResponse(exchange, failedJSON, Integer.parseInt(response.get("code")));
                                 exchange.close();
                             }
                         } else {
-                            sendResponse(exchange, "User not found", 404);
+                            sendResponse(exchange, failedJSON, 404);
                             exchange.close();
                         }
                     }
                 } else {
-                    exchange.sendResponseHeaders(405, 0);
+                    System.out.println("Only accept GET request.");
+                    sendResponse(exchange, failedJSON, 405);
                     exchange.close();
                 }
             } catch(Exception e){
                 e.printStackTrace();
-                sendResponse(exchange, "Bad request: Exception. " + exchange.getRequestBody().toString(), 400);
+                sendResponse(exchange, failedJSON, 400);
                 exchange.close();
             }
         }
@@ -474,6 +479,7 @@ public class OrderService {
             this.upath = upath;
         }
         public void handle(HttpExchange exchange){
+            String failedJSON = "{}";
             // Handle post request for /user
             try {
                 if ("POST".equals(exchange.getRequestMethod())) {
@@ -503,12 +509,13 @@ public class OrderService {
                         while ((line = reader.readLine()) != null) {
                             responseText.append(line);
                         }
-                        System.out.println("Response Text: " + responseText.toString());
+                        System.out.println("Response Data: " + responseText.toString());
                         sendResponse(exchange, responseText.toString(), responseCode);
                         connection.disconnect();
                         exchange.close();
                     } catch(IOException e){
-                        sendResponse(exchange, "Cannot read response text", responseCode);
+                        System.out.println("Cannot read response text");
+                        sendResponse(exchange, failedJSON, responseCode);
                         connection.disconnect();
                         exchange.close();
                     }
@@ -537,19 +544,19 @@ public class OrderService {
                         }
                         in.close();
 
-                        System.out.println("Response Text: " + response.toString());
+                        System.out.println("Response Data: " + response.toString());
                         sendResponse(exchange, response.toString(), responseCode);
                         connection.disconnect();
                         exchange.close();
                     } else{
                         System.out.println("GET request fail.");
-                        sendResponse(exchange, "GET request fail.", 400);
+                        sendResponse(exchange, failedJSON, 400);
                         connection.disconnect();
                         exchange.close();
                     }
                 } else {
                     System.out.println("User only accept POST or GET.");
-                    sendResponse(exchange, "User only accept POST or GET.", 405);
+                    sendResponse(exchange, failedJSON, 405);
                     exchange.close();
                 }
             }catch (Exception e) {
@@ -566,6 +573,7 @@ public class OrderService {
             this.ppath = ppath;
         }
         public void handle(HttpExchange exchange){
+            String failedJSON = "{}";
             // Handle post request for /product
             try {
                 if ("POST".equals(exchange.getRequestMethod())) {
@@ -595,12 +603,12 @@ public class OrderService {
                         while ((line = reader.readLine()) != null) {
                             responseText.append(line);
                         }
-                        System.out.println("Response Text: " + responseText.toString());
+                        System.out.println("Response Data: " + responseText.toString());
                         sendResponse(exchange, responseText.toString(), responseCode);
                         connection.disconnect();
                         exchange.close();
                     } catch(IOException e){
-                        sendResponse(exchange, "Cannot read response text", responseCode);
+                        sendResponse(exchange, failedJSON, responseCode);
                         connection.disconnect();
                         exchange.close();
                     }
@@ -628,19 +636,19 @@ public class OrderService {
                         }
                         in.close();
 
-                        System.out.println("Response Text" + response.toString());
+                        System.out.println("Response Data" + response.toString());
                         sendResponse(exchange, response.toString(), responseCode);
                         connection.disconnect();
                         exchange.close();
                     } else{
                         System.out.println("GET request fail.");
-                        sendResponse(exchange, "GET request fail.", 400);
+                        sendResponse(exchange, failedJSON, 400);
                         connection.disconnect();
                         exchange.close();
                     }
                 } else {
                     System.out.println("Product only accept POST or GET.");
-                    sendResponse(exchange, "Product only accept POST or GET.", 405);
+                    sendResponse(exchange, failedJSON, 405);
                     exchange.close();
                 }
             }catch (Exception e) {
@@ -652,6 +660,7 @@ public class OrderService {
     }
     private static void sendResponse(HttpExchange exchange, String response, int code){
         try {
+            exchange.getResponseHeaders().set("Content-Type", "application/json");
             exchange.sendResponseHeaders(code, response.length());
             OutputStream os = exchange.getResponseBody();
             os.write(response.getBytes(StandardCharsets.UTF_8));

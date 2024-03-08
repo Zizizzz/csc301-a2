@@ -123,6 +123,7 @@ public class ProductService {
     static class ProductHandler implements HttpHandler {
         @Override
         public void handle(HttpExchange exchange) {
+            String failedJSON = "{}";
             try {
                 // Handle POST request for /product
                 if ("POST".equals(exchange.getRequestMethod())) {
@@ -152,22 +153,24 @@ public class ProductService {
                             }
                             if (responseCode == 400) {
                                 badCreateRequest = badCreateRequest.substring(0, badCreateRequest.length() - 2) + " missing. ";
-                                sendResponse(exchange, badCreateRequest + responseData.toString(), responseCode);
+                                System.out.println(badCreateRequest + responseData.toString());
+                                sendResponse(exchange, failedJSON, responseCode);
                                 exchange.close();
                                 break;
                             }
                             responseCode = handleCreateProduct(requestData);
                             if (responseCode == 409) {
-                                String duplicateProduct = "Duplicate product already exist. ";
-                                sendResponse(exchange, duplicateProduct + responseData.toString(), responseCode);
+                                System.out.println("Duplicate product already exist. "+ responseData.toString());
+                                sendResponse(exchange, failedJSON , responseCode);
                                 exchange.close();
                                 break;
                             } else if (responseCode == 400) {
-                                sendResponse(exchange, "Bad Request: Exception appear. " + responseData.toString(), responseCode);
+                                System.out.println("Bad Request: Exception appear. " + responseData.toString());
+                                sendResponse(exchange, failedJSON, responseCode);
                                 exchange.close();
                                 break;
                             } else {
-                                sendResponse(exchange, "Successfully create new product: " + responseData.toString(), responseCode);
+                                sendResponse(exchange, responseData.toString(), responseCode);
                                 exchange.close();
                                 break;
                             }
@@ -175,37 +178,45 @@ public class ProductService {
                             if (requestData.get("id") == null) {
                                 responseCode = 400;
                                 String badUpdateRequest = "Bad request: Missing product id. ";
-                                System.out.println(badUpdateRequest);
-                                sendResponse(exchange, badUpdateRequest + responseData.toString(), responseCode);
+                                System.out.println(badUpdateRequest + responseData.toString());
+                                sendResponse(exchange, failedJSON, responseCode);
                                 exchange.close();
                                 break;
                             }
                             responseCode = handleUpdateProduct(requestData);
                             if (responseCode == 400) {
-                                sendResponse(exchange, "Bad Request: Exception appear. " + responseData.toString(), responseCode);
+                                System.out.println("Bad Request: Exception appear. " + responseData.toString());
+                                sendResponse(exchange, failedJSON, responseCode);
                                 exchange.close();
                             } else if (responseCode == 404) {
-                                sendResponse(exchange, "Product not Found. " + responseData.toString(), responseCode);
+                                System.out.println("Product not Found. " + responseData.toString());
+                                sendResponse(exchange, failedJSON, responseCode);
                                 exchange.close();
                             } else {
-                                sendResponse(exchange, "Successfully update product: " + responseData.toString(), responseCode);
-                                exchange.close();
+                                Map<String, String> fullProductInfo = handleGetProduct(Integer.parseInt(requestData.get("id").toString()));
+                                if (Objects.equals(fullProductInfo.get("code"), "200")){
+                                    sendResponse(exchange, fullProductInfo.get("message"), responseCode);
+                                    exchange.close();
+                                } else{
+                                    System.out.println("Failed to get the updated user.");
+                                    sendResponse(exchange, failedJSON, 400);
+                                    exchange.close();
+                                }
                             }
                             break;
                         case "delete":
                             for (String keyName : keyNames) {
-
                                 if (requestData.get(keyName) == null) {
                                     responseCode = 400;
                                 }
                             }
                             if (responseCode == 400) {
-                                sendResponse(exchange, "", responseCode);
+                                sendResponse(exchange, failedJSON, responseCode);
                                 exchange.close();
                                 break;
                             }
                             responseCode = handleDeleteProduct(requestData);
-                            sendResponse(exchange, "", responseCode);
+                            sendResponse(exchange, failedJSON, responseCode);
                             exchange.close();
                             break;
                         case "start":
@@ -228,29 +239,38 @@ public class ProductService {
                             break;
                         default:
                             // Handle unknown operation
-                            sendResponse(exchange, "Unknown operation: " + requestData.toString(), 400);
+                            System.out.println("Unknown operation: " + requestData.toString());
+                            sendResponse(exchange, failedJSON, 400);
                             exchange.close();
                             break;
                     }
                 } else if ("GET".equals(exchange.getRequestMethod())) {
                     String path = exchange.getRequestURI().getPath();
                     String[] pathSegments = path.split("/");
-                    if (pathSegments.length < 3) {
-                        sendResponse(exchange, "Incorrect Get request", 400);
+                    if (pathSegments.length != 3) {
+                        System.out.println("Incorrect Get request");
+                        sendResponse(exchange, failedJSON, 400);
                         exchange.close();
                     } else {
                         int productId = Integer.parseInt(pathSegments[2]);
                         Map<String, String> response = handleGetProduct(productId);
-                        sendResponse(exchange, response.get("message"), Integer.parseInt(response.get("code")));
-                        exchange.close();
+                        if (Integer.parseInt(response.get("code")) == 200){
+                            sendResponse(exchange, response.get("message"), 200);
+                            exchange.close();
+                        } else {
+                            System.out.println(response.get("message"));
+                            sendResponse(exchange, failedJSON, Integer.parseInt(response.get("code")));
+                            exchange.close();
+                        }
                     }
                 } else {
-                    exchange.sendResponseHeaders(405, 0);
+                    System.out.println("Only accept POST or GET request.");
+                    sendResponse(exchange, failedJSON, 405);
                     exchange.close();
                 }
             } catch (Exception e) {
                 e.printStackTrace();
-                sendResponse(exchange, "Bad request: Exception. " + exchange.getRequestBody().toString(), 400);
+                sendResponse(exchange, failedJSON, 400);
                 exchange.close();
             }
         }
@@ -469,6 +489,7 @@ public class ProductService {
 
     private static void sendResponse(HttpExchange exchange, String response, int code){
         try {
+            exchange.getResponseHeaders().set("Content-Type", "application/json");
             exchange.sendResponseHeaders(code, response.length());
             OutputStream os = exchange.getResponseBody();
             os.write(response.getBytes(StandardCharsets.UTF_8));
