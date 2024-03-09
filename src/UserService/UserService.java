@@ -161,7 +161,6 @@ public class UserService {
                             }
                             responseCode = handleCreateUser(requestData);
                             if (responseCode == 409){
-                                System.out.println("Duplicate user already exist. " + requestData.toString());
                                 sendResponse(exchange, failedJSON, responseCode);
                                 exchange.close();
                                 break;
@@ -171,7 +170,8 @@ public class UserService {
                                 exchange.close();
                                 break;
                             } else{
-                                sendResponse(exchange, responseData.toString(), responseCode);
+                                Map<String, String> fullUserInfo = handleGetUser(Integer.parseInt(requestData.get("id").toString()));
+                                sendResponse(exchange, fullUserInfo.get("data"), Integer.parseInt(fullUserInfo.get("code")));
                                 exchange.close();
                                 break;
                             }
@@ -195,14 +195,9 @@ public class UserService {
                                 exchange.close();
                             } else{
                                 Map<String, String> fullUserInfo = handleGetUser(Integer.parseInt(requestData.get("id").toString()));
-                                if (Objects.equals(fullUserInfo.get("code"), "200")){
-                                    sendResponse(exchange, fullUserInfo.get("message"), responseCode);
-                                    exchange.close();
-                                } else{
-                                    System.out.println("Failed to get the updated user.");
-                                    sendResponse(exchange, failedJSON, 400);
-                                    exchange.close();
-                                }
+                                sendResponse(exchange, fullUserInfo.get("data"), Integer.parseInt(fullUserInfo.get("code")));
+                                exchange.close();
+                                break;
                             }
                             break;
                         case "delete":
@@ -255,14 +250,8 @@ public class UserService {
                     } else{
                         int userId = Integer.parseInt(pathSegments[2]);
                         Map<String, String> response = handleGetUser(userId);
-                        if (Integer.parseInt(response.get("code")) == 200){
-                            sendResponse(exchange, response.get("message"), 200);
-                            exchange.close();
-                        } else {
-                            System.out.println(response.get("message"));
-                            sendResponse(exchange, failedJSON, Integer.parseInt(response.get("code")));
-                            exchange.close();
-                        }
+                        sendResponse(exchange, response.get("data"), Integer.parseInt(response.get("code")));
+                        exchange.close();
                     }
                 } else {
                     System.out.println("Only accept POST or GET request.");
@@ -439,8 +428,7 @@ public class UserService {
     private static Map<String, String> handleGetUser(int userId) {
         // Implement user retrieval logic
         Map<String, String> response = new HashMap<>();
-        Map<String, String> responseData = new HashMap<>();
-        String message = "";
+        JSONObject responseData = new JSONObject();
         String responseCode = "";
         // Prepare the SQL query
         String sql = "SELECT id, username, email, password FROM users WHERE id = ?";
@@ -453,27 +441,23 @@ public class UserService {
                 // Check if a user was found
                 if (resultSet.next()) {
                     // Retrieve user details
-                    responseData.put("id", Integer.toString(resultSet.getInt("id")));
+                    responseData.put("id", resultSet.getInt("id"));
                     responseData.put("username", resultSet.getString("username"));
                     responseData.put("email", resultSet.getString("email"));
                     responseData.put("password", resultSet.getString("password"));
 
                     // Use the retrieved user data as needed
-                    message = responseData.toString();
+
                     responseCode = "200";
                 } else {
-                    message = "User not found with ID: " + userId;
                     responseCode = "404";
                 }
 
             }
         } catch (SQLException e) {
             responseCode = "400";
-            e.printStackTrace();
-            message = "Failed to get user";
         }
-        System.out.println(message);
-        response.put("message", message);
+        response.put("data", responseData.toString());
         response.put("code", responseCode);
         return response;
     }
@@ -507,23 +491,33 @@ public class UserService {
         return false;
     }
 
+    /**
+     * hash the password by SHA-256 message digest
+     * @param password
+     * @return
+     */
     private static String hashPassword(String password) {
         try {
-            byte[] salt = {-16, -119, 5, 100, -101, -43, -87, -107, -54, -92, -112, -2, -107, 33, 99, -32};
-            // Combine salt and password, then hash using SHA-256
+            // Create a SHA-256 message digest
             MessageDigest digest = MessageDigest.getInstance("SHA-256");
-            digest.update(salt);
-            byte[] hashedPassword = digest.digest(password.getBytes(StandardCharsets.UTF_8));
 
-            // Combine salt and hashed password, then encode to Base64
-            byte[] combined = new byte[salt.length + hashedPassword.length];
-            System.arraycopy(salt, 0, combined, 0, salt.length);
-            System.arraycopy(hashedPassword, 0, combined, salt.length, hashedPassword.length);
+            // Convert the password string to bytes and hash it
+            byte[] hashedBytes = digest.digest(password.getBytes(StandardCharsets.UTF_8));
 
-            return Base64.getEncoder().encodeToString(combined);
+            // Convert the hashed bytes to a hexadecimal string
+            StringBuilder hexString = new StringBuilder();
+            for (byte b : hashedBytes) {
+                String hex = Integer.toHexString(0xff & b);
+                if (hex.length() == 1) {
+                    hexString.append('0');
+                }
+                hexString.append(hex);
+            }
+
+            return hexString.toString();
         } catch (NoSuchAlgorithmException e) {
+            // Handle the exception (e.g., log it or throw a runtime exception)
             e.printStackTrace();
-            // Handle hashing algorithm exception
             return null;
         }
     }

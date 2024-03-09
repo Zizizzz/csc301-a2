@@ -445,7 +445,7 @@ public class OrderService {
         private static Map<String, String> handleGetOrder(int userId) {
             // Implement user retrieval logic
             Map<String, String> response = new HashMap<>();
-            Map<String, String> responseData = new HashMap<>();
+            JSONObject responseData = new JSONObject();
             String responseCode = "";
             // Prepare the SQL query
             String sql = "SELECT product_id, SUM(quantity) as total_quantity FROM orders WHERE user_id = ? GROUP BY product_id";
@@ -458,7 +458,7 @@ public class OrderService {
                     while (resultSet.next()) {
                         int productId = resultSet.getInt("product_id");
                         int totalQuantity = resultSet.getInt("total_quantity");
-                        responseData.put(String.valueOf(productId), String.valueOf(totalQuantity));
+                        responseData.put(productId, totalQuantity);
                     }
                 }
             } catch (Exception e) {
