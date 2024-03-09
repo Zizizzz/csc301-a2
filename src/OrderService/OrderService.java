@@ -182,17 +182,17 @@ public class OrderService {
                         switch (command){
                             case "place order":
                                 for (String keyName: keyNames){
+                                    responseData.put(keyName, requestData.get(keyName));
                                     if (requestData.get(keyName) == null){
                                         responseCode = 400;
-                                        System.out.println("Bad request " + requestData.toString());
-                                        responseData.put("status", "Invalid Request");
-                                        sendResponse(exchange, responseData.toString(), 400);
-                                        exchange.close();
-                                    } else {
-                                        responseData.put(keyName, requestData.get(keyName));
                                     }
                                 }
-                                if (responseCode != 400){
+                                if (responseCode == 400){
+                                    System.out.println("Bad request " + requestData.toString());
+                                    responseData.put("status", "Invalid Request");
+                                    sendResponse(exchange, responseData.toString(), 400);
+                                    exchange.close();
+                                }else{
                                     int quantity = Integer.parseInt(responseData.get("quantity").toString());
 
                                     if (userExist(responseData.get("user_id").toString())){
@@ -241,8 +241,9 @@ public class OrderService {
                                         sendResponse(exchange, responseData.toString(), 400);
                                         exchange.close();
                                     }
+                                    break;
                                 }
-                                break;
+
                             case "start":
                                 clearTableData(connection,"orders");
                                 move_table(connection,"orders1","orders");
