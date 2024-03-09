@@ -6,7 +6,8 @@ import java.io.*;
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
 
-
+import java.util.regex.Pattern;
+import java.util.regex.Matcher;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
@@ -25,6 +26,19 @@ import java.sql.*;
 public class UserService {
     private static Connection connection;
     private static byte[] salt;
+
+    // Regex for validating email address
+    private static final String EMAIL_PATTERN =
+            "^[a-zA-Z0-9_+&*-]+(?:\\.[a-zA-Z0-9_+&*-]+)*@(?:[a-zA-Z0-9-]+\\.)+[a-zA-Z]{2,7}$";
+
+    public static boolean isValidEmail(String email) {
+        Pattern pattern = Pattern.compile(EMAIL_PATTERN);
+        if (email == null) {
+            return false;
+        }
+        Matcher matcher = pattern.matcher(email);
+        return matcher.matches();
+    }
     public static void main(String[] args) throws Exception {
         if (args.length != 1){
             System.out.println("Command: java UserService <config file>");
@@ -291,7 +305,7 @@ public class UserService {
         String password = requestData.get("password").toString();
 
         // Validate the user data
-        if (username.isEmpty() || email.isEmpty() ||
+        if (username.isEmpty() || !isValidEmail(email) ||
             password.isEmpty() || userId < 0) {
             // Bad Request due to missing, empty, or invalid fields
             return 400; 
@@ -349,7 +363,7 @@ public class UserService {
             }if (requestData.get("email") != null) {
                 email = requestData.get("email").toString();
 
-                if (email.isEmpty()){
+                if (!isValidEmail(email)){
                     return 400;
                 }
 
