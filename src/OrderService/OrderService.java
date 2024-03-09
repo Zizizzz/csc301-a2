@@ -38,8 +38,8 @@ public class OrderService {
             server.setExecutor(Executors.newFixedThreadPool(20)); // Adjust the pool size as needed
             server.createContext("/order", new PostHandler(config.get("us").toString(), config.get("ps").toString()));
 
-            server.createContext("/user/purchased", new GetHandler(config.get("us").toString()));
             server.createContext("/user", new UserHandler(config.get("us").toString()));
+            server.createContext("/user/purchased", new GetHandler(config.get("us").toString()));
             server.createContext("/product", new ProductHandler(config.get("ps").toString()));
 
             connection = DriverManager.getConnection("jdbc:sqlite:./../../src/OrderService/OrderDB.sqlite");
@@ -439,7 +439,7 @@ public class OrderService {
                     while (resultSet.next()) {
                         int productId = resultSet.getInt("product_id");
                         int totalQuantity = resultSet.getInt("total_quantity");
-                        responseData.put(productId, totalQuantity);
+                        responseData.put(Integer.toString(productId), totalQuantity);
                     }
                 }
             } catch (Exception e) {
