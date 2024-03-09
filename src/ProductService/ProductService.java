@@ -286,6 +286,12 @@ public class ProductService {
         String description = requestData.get("description").toString();
         float price = Float.parseFloat(requestData.get("price").toString());
         int quantity = Integer.parseInt(requestData.get("quantity").toString());
+
+        // Validate the product data
+        if (name.isEmpty() || description.isEmpty() || price < 0 || quantity < 0 || productId < 0) {
+            return 400;
+        } 
+
         if (checkIdExist(productId)){
             System.out.println("Duplicate product already exist. " + requestData.toString());
             responseCode = 409;
@@ -331,18 +337,38 @@ public class ProductService {
             boolean toUpdate = false;
             if (requestData.get("name") != null){
                 name = requestData.get("name").toString();
+
+                if (name.isEmpty()){
+                    return 400;
+                }
+
                 updateQuery = updateQuery +  "name = ?, ";
                 toUpdate = true;
             }if (requestData.get("description") != null) {
                 description = requestData.get("description").toString();
+
+                if (description.isEmpty()) {
+                    return 400;
+                }
+
                 updateQuery = updateQuery +  "description = ?, ";
                 toUpdate = true;
             }if (requestData.get("price") != null){
                 price = requestData.get("price").toString();
+
+                if (Float.parseFloat(price) < 0){
+                    return 400;
+                }
+
                 updateQuery = updateQuery +  "price = ?, ";
                 toUpdate = true;
             }if (requestData.get("quantity") != null){
                 quantity = requestData.get("quantity").toString();
+
+                if (Integer.parseInt(quantity) < 0){
+                    return 400;
+                }
+                
                 updateQuery = updateQuery +  "quantity = ?, ";
                 toUpdate = true;
             }if (toUpdate){

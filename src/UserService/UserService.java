@@ -20,7 +20,6 @@ import java.util.Base64;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.*;
 
-import java.io.FileReader;
 import java.sql.*;
 
 public class UserService {
@@ -302,6 +301,13 @@ public class UserService {
         String email = requestData.get("email").toString();
         String password = requestData.get("password").toString();
 
+        // Validate the user data
+        if (username.isEmpty() || email.isEmpty() ||
+            password.isEmpty() || userId < 0) {
+            // Bad Request due to missing, empty, or invalid fields
+            return 400; 
+        }
+
         if (checkIdExist(userId)){
             System.out.println("Duplicate user already exist. " + requestData.toString());
             responseCode = 409;
@@ -344,14 +350,29 @@ public class UserService {
             boolean toUpdate = false;
             if (requestData.get("username") != null){
                 username = requestData.get("username").toString();
+
+                if (username.isEmpty()){
+                    return 400;
+                }
+
                 updateQuery = updateQuery +  "username = ?, ";
                 toUpdate = true;
             }if (requestData.get("email") != null) {
                 email = requestData.get("email").toString();
+
+                if (email.isEmpty()){
+                    return 400;
+                }
+
                 updateQuery = updateQuery +  "email = ?, ";
                 toUpdate = true;
             }if (requestData.get("password") != null){
                 password = hashPassword(requestData.get("password").toString());
+
+                if (password.isEmpty()){
+                    return 400;
+                }
+
                 updateQuery = updateQuery +  "password = ?, ";
                 toUpdate = true;
             }if (toUpdate){
