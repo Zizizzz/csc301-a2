@@ -63,8 +63,7 @@ public class OrderService {
                         "id INTEGER PRIMARY KEY," +
                         "product_id INTEGER NOT NULL," +
                         "user_id INTEGER NOT NULL," +
-                        "quantity INTEGER NOT NULL," +
-                        "status TEXT NOT NULL)";
+                        "quantity INTEGER NOT NULL)";
                 stmt.execute(sql);
                 System.out.println("Table 'orders' created.");
             }
@@ -73,8 +72,7 @@ public class OrderService {
                         "id INTEGER PRIMARY KEY," +
                         "product_id INTEGER NOT NULL," +
                         "user_id INTEGER NOT NULL," +
-                        "quantity INTEGER NOT NULL," +
-                        "status TEXT NOT NULL)";
+                        "quantity INTEGER NOT NULL)";
                 stmt.execute(sql);
                 System.out.println("Table 'orders1' created.");
             }
