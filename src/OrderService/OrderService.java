@@ -63,8 +63,7 @@ public class OrderService {
                         "id INTEGER PRIMARY KEY," +
                         "product_id INTEGER NOT NULL," +
                         "user_id INTEGER NOT NULL," +
-                        "quantity INTEGER NOT NULL," +
-                        "status TEXT NOT NULL)";
+                        "quantity INTEGER NOT NULL)";
                 stmt.execute(sql);
                 System.out.println("Table 'orders' created.");
             }
@@ -73,8 +72,7 @@ public class OrderService {
                         "id INTEGER PRIMARY KEY," +
                         "product_id INTEGER NOT NULL," +
                         "user_id INTEGER NOT NULL," +
-                        "quantity INTEGER NOT NULL," +
-                        "status TEXT NOT NULL)";
+                        "quantity INTEGER NOT NULL)";
                 stmt.execute(sql);
                 System.out.println("Table 'orders1' created.");
             }
@@ -177,7 +175,7 @@ public class OrderService {
                     JSONParser jsonParser = new JSONParser();
                     JSONObject requestData = (JSONObject) jsonParser.parse(new String(requestBody.readAllBytes()));
                     String[] keyNames = {"product_id", "user_id", "quantity"};
-                    Map<String, String> responseData = new HashMap<>();
+                    JSONObject responseData = new JSONObject();
                     int responseCode = 200;
                     if (requestData.get("command") != null){
                         String command = requestData.get("command").toString();
@@ -187,41 +185,49 @@ public class OrderService {
                                     if (requestData.get(keyName) == null){
                                         responseCode = 400;
                                         System.out.println("Bad request " + requestData.toString());
-                                        sendResponse(exchange, failedJSON, 400);
+                                        responseData.put("status", "Invalid Request");
+                                        sendResponse(exchange, responseData.toString(), 400);
                                         exchange.close();
                                     } else {
-                                        responseData.put(keyName, requestData.get(keyName).toString());
+                                        responseData.put(keyName, requestData.get(keyName));
                                     }
                                 }
                                 if (responseCode != 400){
-                                    int quantity = Integer.parseInt(responseData.get("quantity"));
+                                    int quantity = Integer.parseInt(responseData.get("quantity").toString());
 
-                                    if (userExist(responseData.get("user_id"))){
-                                        Map<String, String> productInfo = getProductInfo(responseData.get("product_id"));
+                                    if (userExist(responseData.get("user_id").toString())){
+                                        Map<String, String> productInfo = getProductInfo(responseData.get("product_id").toString());
                                         if (productInfo.get("code").equals("200")){
-                                            int productQuantity = Integer.parseInt(productInfo.get("quantity"));
-                                            if (productQuantity == -1){
-                                                System.out.println("Invalid product quantity does not exist");
+                                            try {
+                                                int productQuantity = Integer.parseInt(productInfo.get("quantity"));
+                                                if (productQuantity == -1){
+                                                    System.out.println("Invalid product quantity does not exist");
+                                                    responseData.put("status", "Invalid Request");
+                                                    sendResponse(exchange, responseData.toString(), 400);
+                                                    exchange.close();
+                                                } else{
+                                                    if (quantity > productQuantity){
+                                                        responseData.put("status", "Exceeded quantity limit");
+                                                        sendResponse(exchange, responseData.toString(), 409);
+                                                        exchange.close();
+                                                    } else{
+                                                        responseCode = handleCreateOrder(requestData);
+                                                        if (responseCode == 200){
+                                                            responseData.put("status", "Success");
+                                                            sendResponse(exchange, responseData.toString(), responseCode);
+                                                            exchange.close();
+                                                        } else {
+                                                            responseData.put("status", "Invalid Request");
+                                                            sendResponse(exchange, responseData.toString(), 400);
+                                                            exchange.close();
+                                                        }
+                                                    }
+                                                }
+                                            } catch (NumberFormatException e){
+                                                System.out.println("Product quantity is not a number.");
                                                 responseData.put("status", "Invalid Request");
                                                 sendResponse(exchange, responseData.toString(), 400);
                                                 exchange.close();
-                                            } else{
-                                                if (quantity > productQuantity){
-                                                     responseData.put("status", "Exceeded quantity limit");
-                                                    sendResponse(exchange, responseData.toString(), 409);
-                                                    exchange.close();
-                                                } else{
-                                                    responseCode = handleCreateOrder(requestData);
-                                                    if (responseCode == 200){
-                                                        responseData.put("status", "Success");
-                                                        sendResponse(exchange, responseData.toString(), responseCode);
-                                                        exchange.close();
-                                                    } else {
-                                                        responseData.put("status", "Invalid Request");
-                                                        sendResponse(exchange, responseData.toString(), 400);
-                                                        exchange.close();
-                                                    }
-                                                }
                                             }
                                         } else{
                                             System.out.println("Product does not exist");
