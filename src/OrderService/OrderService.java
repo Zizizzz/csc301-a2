@@ -201,7 +201,7 @@ public class OrderService {
                                         if (productInfo.get("code").equals("200")){
                                             int productQuantity = Integer.parseInt(productInfo.get("quantity"));
                                             if (productQuantity == -1){
-                                                System.out.println("Product quantity does not exist");
+                                                System.out.println("Invalid product quantity does not exist");
                                                 responseData.put("status", "Invalid Request");
                                                 sendResponse(exchange, responseData.toString(), 400);
                                                 exchange.close();
@@ -298,7 +298,7 @@ public class OrderService {
         private static Map<String, String> getProductInfo(String productId){
             Map<String, String> result = new HashMap<>();
             String responseCode = "";
-            String quantity = "";
+            String quantity = "-1";
             try {
                 URL url = new URL(ppath + "/" + productId);
 
@@ -309,16 +309,10 @@ public class OrderService {
                 int responseCodeInt = connection.getResponseCode();
                 if (responseCodeInt == HttpURLConnection.HTTP_OK) {
                     responseCode = "200";
-                    BufferedReader in = new BufferedReader(new InputStreamReader(connection.getInputStream()));
-                    String inputLine;
-                    StringBuilder response = new StringBuilder();
 
-                    while ((inputLine = in.readLine()) != null) {
-                        response.append(inputLine);
-                    }
-                    in.close();
-
-                    quantity = getAmount(response.toString());
+                    JSONParser jsonParser = new JSONParser();
+                    JSONObject responseData = (JSONObject) jsonParser.parse(new String(connection.getInputStream().readAllBytes()));
+                    quantity = responseData.get("quantity").toString();
                     connection.disconnect();
                 } else{
                     connection.disconnect();
@@ -330,24 +324,7 @@ public class OrderService {
             result.put("code", responseCode);
             return result;
         }
-        private static String getAmount(String productInfo){
-            String quantity = "-1";
-            // Define the pattern for extracting the user ID
-            Pattern pattern = Pattern.compile("Quantity: (\\d+)");
 
-            // Create a Matcher object and apply the pattern to the input string
-            Matcher matcher = pattern.matcher(productInfo);
-
-            // Check if the pattern is found
-            if (matcher.find()) {
-                // Extract the user ID from the matched group
-                String uantityStr = matcher.group(1);
-
-                // Convert the user ID to an integer
-                quantity = uantityStr;
-            }
-            return quantity;
-        }
 
         private static int handleCreateOrder(JSONObject requestData) throws SQLException {
             // Implement user creation logic
