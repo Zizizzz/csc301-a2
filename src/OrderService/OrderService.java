@@ -37,7 +37,6 @@ public class OrderService {
             server.createContext("/order", new PostHandler(config.get("us").toString(), config.get("ps").toString()));
 
             server.createContext("/user", new UserHandler(config.get("us").toString()));
-            server.createContext("/user/purchased", new GetHandler(config.get("us").toString()));
             server.createContext("/product", new ProductHandler(config.get("ps").toString()));
 
             connection = DriverManager.getConnection("jdbc:sqlite:./../../src/OrderService/OrderDB.sqlite");
@@ -395,98 +394,6 @@ public class OrderService {
         }
     }
 
-    static class GetHandler implements HttpHandler {
-        private static String upath;
-
-        // Constructor that takes a string <UserService location> during initialization
-        public GetHandler(String upath) {
-            this.upath = upath;
-        }
-        public void handle(HttpExchange exchange){
-            // Handle post request for /user
-            String failedJSON = "{}";
-            try {
-                if ("GET".equals(exchange.getRequestMethod())) {
-                    String path = exchange.getRequestURI().getPath();
-                    String[] pathSegments = path.split("/");
-                    if (pathSegments.length != 4){
-                        sendResponse(exchange, failedJSON, 400);
-                        exchange.close();
-                    } else{
-                        if (userExist(pathSegments[3])){
-                            Map<String, String> response = handleGetOrder(Integer.parseInt(pathSegments[3]));
-                            if (Objects.equals(response.get("code"), "200")){
-                                sendResponse(exchange, response.get("data"), 200);
-                                exchange.close();
-                            } else {
-                                sendResponse(exchange, failedJSON, Integer.parseInt(response.get("code")));
-                                exchange.close();
-                            }
-                        } else {
-                            sendResponse(exchange, failedJSON, 404);
-                            exchange.close();
-                        }
-                    }
-                } else {
-                    System.out.println("Only accept GET request.");
-                    sendResponse(exchange, failedJSON, 405);
-                    exchange.close();
-                }
-            } catch(Exception e){
-                e.printStackTrace();
-                sendResponse(exchange, failedJSON, 400);
-                exchange.close();
-            }
-        }
-
-        private static boolean userExist(String userId){
-            boolean exist = false;
-            try {
-                URL url = new URL(upath + "/" + userId);
-
-                HttpURLConnection connection = (HttpURLConnection) url.openConnection();
-
-                connection.setRequestMethod("GET");
-
-                int responseCode = connection.getResponseCode();
-                if (responseCode == 200){
-                    exist = true;
-                }
-            } catch (Exception e){
-                e.printStackTrace();
-            }
-            return exist;
-        }
-
-        private static Map<String, String> handleGetOrder(int userId) {
-            // Implement user retrieval logic
-            Map<String, String> response = new HashMap<>();
-            JSONObject responseData = new JSONObject();
-            String responseCode = "200";
-            // Prepare the SQL query
-            String sql = "SELECT product_id, SUM(quantity) as total_quantity FROM orders WHERE user_id = ? GROUP BY product_id";
-            try (PreparedStatement preparedStatement = connection.prepareStatement(sql)) {
-                // Set the user ID parameter
-                preparedStatement.setInt(1, userId);
-
-                // Execute the query
-                try (ResultSet resultSet = preparedStatement.executeQuery()) {
-                    while (resultSet.next()) {
-                        int productId = resultSet.getInt("product_id");
-                        int totalQuantity = resultSet.getInt("total_quantity");
-                        responseData.put(Integer.toString(productId), totalQuantity);
-                    }
-                }
-            } catch (Exception e) {
-                responseCode = "400";
-                e.printStackTrace();
-            }
-            response.put("data", responseData.toString());
-            response.put("code", responseCode);
-            return response;
-        }
-    }
-
     static class UserHandler implements HttpHandler {
         private String upath;
 
@@ -540,36 +447,61 @@ public class OrderService {
                 else if ("GET".equals(exchange.getRequestMethod())){
                     String path = exchange.getRequestURI().getPath();
                     String[] pathSegments = path.split("/");
-                    String userId = pathSegments[2];
-                    URL url = new URL(upath + "/" + userId);
+                    if (pathSegments.length >= 3){
+                        if (Objects.equals(pathSegments[2], "purchase")){
+                            if (pathSegments.length != 4){
+                                sendResponse(exchange, failedJSON, 400);
+                                exchange.close();
+                            } else{
+                                if (userExist(pathSegments[3])){
+                                    Map<String, String> response = handleGetOrder(Integer.parseInt(pathSegments[3]));
+                                    if (Objects.equals(response.get("code"), "200")){
+                                        sendResponse(exchange, response.get("data"), 200);
+                                        exchange.close();
+                                    } else {
+                                        sendResponse(exchange, failedJSON, Integer.parseInt(response.get("code")));
+                                        exchange.close();
+                                    }
+                                } else {
+                                    sendResponse(exchange, failedJSON, 404);
+                                    exchange.close();
+                                }
+                            }
+                        } else{
+                            String userId = pathSegments[2];
+                            URL url = new URL(upath + "/" + userId);
 
-                    HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+                            HttpURLConnection connection = (HttpURLConnection) url.openConnection();
 
-                    connection.setRequestMethod("GET");
+                            connection.setRequestMethod("GET");
 
-                    int responseCode = connection.getResponseCode();
-                    System.out.println("Response Code: " + responseCode);
+                            int responseCode = connection.getResponseCode();
+                            System.out.println("Response Code: " + responseCode);
 
-                    if (responseCode == HttpURLConnection.HTTP_OK) {
-                        BufferedReader in = new BufferedReader(new InputStreamReader(connection.getInputStream()));
-                        String inputLine;
-                        StringBuilder response = new StringBuilder();
+                            if (responseCode == HttpURLConnection.HTTP_OK) {
+                                BufferedReader in = new BufferedReader(new InputStreamReader(connection.getInputStream()));
+                                String inputLine;
+                                StringBuilder response = new StringBuilder();
 
-                        while ((inputLine = in.readLine()) != null) {
-                            response.append(inputLine);
+                                while ((inputLine = in.readLine()) != null) {
+                                    response.append(inputLine);
+                                }
+                                in.close();
+
+                                System.out.println("Response Data: " + response.toString());
+                                sendResponse(exchange, response.toString(), responseCode);
+                                connection.disconnect();
+                                exchange.close();
+                            } else{
+                                System.out.println("GET request fail.");
+                                sendResponse(exchange, failedJSON, 400);
+                                connection.disconnect();
+                                exchange.close();
+                            }
                         }
-                        in.close();
 
-                        System.out.println("Response Data: " + response.toString());
-                        sendResponse(exchange, response.toString(), responseCode);
-                        connection.disconnect();
-                        exchange.close();
-                    } else{
-                        System.out.println("GET request fail.");
-                        sendResponse(exchange, failedJSON, 400);
-                        connection.disconnect();
-                        exchange.close();
                     }
+
                 } else {
                     System.out.println("User only accept POST or GET.");
                     sendResponse(exchange, failedJSON, 405);
@@ -578,6 +510,52 @@ public class OrderService {
             }catch (Exception e) {
                 e.printStackTrace();
             }
+        }
+        private static boolean userExist(String userId){
+            boolean exist = false;
+            try {
+                URL url = new URL(upath + "/" + userId);
+
+                HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+
+                connection.setRequestMethod("GET");
+
+                int responseCode = connection.getResponseCode();
+                if (responseCode == 200){
+                    exist = true;
+                }
+            } catch (Exception e){
+                e.printStackTrace();
+            }
+            return exist;
+        }
+
+        private static Map<String, String> handleGetOrder(int userId) {
+            // Implement user retrieval logic
+            Map<String, String> response = new HashMap<>();
+            JSONObject responseData = new JSONObject();
+            String responseCode = "200";
+            // Prepare the SQL query
+            String sql = "SELECT product_id, SUM(quantity) as total_quantity FROM orders WHERE user_id = ? GROUP BY product_id";
+            try (PreparedStatement preparedStatement = connection.prepareStatement(sql)) {
+                // Set the user ID parameter
+                preparedStatement.setInt(1, userId);
+
+                // Execute the query
+                try (ResultSet resultSet = preparedStatement.executeQuery()) {
+                    while (resultSet.next()) {
+                        int productId = resultSet.getInt("product_id");
+                        int totalQuantity = resultSet.getInt("total_quantity");
+                        responseData.put(Integer.toString(productId), totalQuantity);
+                    }
+                }
+            } catch (Exception e) {
+                responseCode = "400";
+                e.printStackTrace();
+            }
+            response.put("data", responseData.toString());
+            response.put("code", responseCode);
+            return response;
         }
 
     }
@@ -634,33 +612,39 @@ public class OrderService {
                 else if ("GET".equals(exchange.getRequestMethod())){
                     String path = exchange.getRequestURI().getPath();
                     String[] pathSegments = path.split("/");
-                    String productId = pathSegments[2];
-                    URL url = new URL(ppath + "/" + productId);
+                    if (pathSegments.length == 3){
+                        String productId = pathSegments[2];
+                        URL url = new URL(ppath + "/" + productId);
 
-                    HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+                        HttpURLConnection connection = (HttpURLConnection) url.openConnection();
 
-                    connection.setRequestMethod("GET");
+                        connection.setRequestMethod("GET");
 
-                    int responseCode = connection.getResponseCode();
-                    System.out.println("Response Code: " + responseCode);
-                    if (responseCode == HttpURLConnection.HTTP_OK) {
-                        BufferedReader in = new BufferedReader(new InputStreamReader(connection.getInputStream()));
-                        String inputLine;
-                        StringBuilder response = new StringBuilder();
+                        int responseCode = connection.getResponseCode();
+                        System.out.println("Response Code: " + responseCode);
+                        if (responseCode == HttpURLConnection.HTTP_OK) {
+                            BufferedReader in = new BufferedReader(new InputStreamReader(connection.getInputStream()));
+                            String inputLine;
+                            StringBuilder response = new StringBuilder();
 
-                        while ((inputLine = in.readLine()) != null) {
-                            response.append(inputLine);
+                            while ((inputLine = in.readLine()) != null) {
+                                response.append(inputLine);
+                            }
+                            in.close();
+
+                            System.out.println("Response Data" + response.toString());
+                            sendResponse(exchange, response.toString(), responseCode);
+                            connection.disconnect();
+                            exchange.close();
+                        } else{
+                            System.out.println("GET request fail.");
+                            sendResponse(exchange, failedJSON, 400);
+                            connection.disconnect();
+                            exchange.close();
                         }
-                        in.close();
-
-                        System.out.println("Response Data" + response.toString());
-                        sendResponse(exchange, response.toString(), responseCode);
-                        connection.disconnect();
-                        exchange.close();
                     } else{
-                        System.out.println("GET request fail.");
+                        System.out.println("Invalid GET url.");
                         sendResponse(exchange, failedJSON, 400);
-                        connection.disconnect();
                         exchange.close();
                     }
                 } else {
