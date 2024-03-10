@@ -19,8 +19,6 @@ import org.json.simple.parser.*;
 
 import java.io.FileReader;
 import java.sql.*;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 public class OrderService {
     private static Connection connection;
@@ -206,22 +204,34 @@ public class OrderService {
                                                 sendResponse(exchange, failedResponseData.toString(), 400);
                                                 exchange.close();
                                             } else{
-                                                if (quantity > productQuantity){
-                                                    failedResponseData.put("status", "Exceeded quantity limit");
-                                                    sendResponse(exchange, failedResponseData.toString(), 409);
+                                                JSONObject currentOrder = getOrderInfo(Integer.parseInt(responseData.get("user_id").toString()));
+                                                if (currentOrder.get("exception") != null){
+                                                    System.out.println("Failed to get existing order");
+                                                    failedResponseData.put("status", "Invalid Request");
+                                                    sendResponse(exchange, failedResponseData.toString(), 400);
                                                     exchange.close();
-                                                } else{
-                                                    responseCode = handleCreateOrder(requestData);
-                                                    if (responseCode == 200){
-                                                        responseData.put("status", "Success");
-                                                        sendResponse(exchange, responseData.toString(), responseCode);
+                                                    break;
+                                                } else {
+                                                    quantity += Integer.parseInt(currentOrder.get(responseData.
+                                                            get("product_id").toString()).toString());
+                                                    if (quantity > productQuantity){
+                                                        failedResponseData.put("status", "Exceeded quantity limit");
+                                                        sendResponse(exchange, failedResponseData.toString(), 409);
                                                         exchange.close();
-                                                    } else {
-                                                        failedResponseData.put("status", "Invalid Request");
-                                                        sendResponse(exchange, failedResponseData.toString(), 400);
-                                                        exchange.close();
+                                                    } else{
+                                                        responseCode = handleCreateOrder(requestData);
+                                                        if (responseCode == 200){
+                                                            responseData.put("status", "Success");
+                                                            sendResponse(exchange, responseData.toString(), responseCode);
+                                                            exchange.close();
+                                                        } else {
+                                                            failedResponseData.put("status", "Invalid Request");
+                                                            sendResponse(exchange, failedResponseData.toString(), 400);
+                                                            exchange.close();
+                                                        }
                                                     }
                                                 }
+
                                             }
                                         } else{
                                             System.out.println("Product does not exist");
@@ -358,6 +368,28 @@ public class OrderService {
             return responseCode;
         }
 
+        private static JSONObject getOrderInfo(int userId) {
+            JSONObject responseData = new JSONObject();
+            // Prepare the SQL query
+            String sql = "SELECT product_id, SUM(quantity) as total_quantity FROM orders WHERE user_id = ? GROUP BY product_id";
+            try (PreparedStatement preparedStatement = connection.prepareStatement(sql)) {
+                // Set the user ID parameter
+                preparedStatement.setInt(1, userId);
+
+                // Execute the query
+                try (ResultSet resultSet = preparedStatement.executeQuery()) {
+                    while (resultSet.next()) {
+                        int productId = resultSet.getInt("product_id");
+                        int totalQuantity = resultSet.getInt("total_quantity");
+                        responseData.put(Integer.toString(productId), totalQuantity);
+                    }
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+                responseData.put("exception", true);
+            }
+            return responseData;
+        }
     }
 
     static class GetHandler implements HttpHandler {
