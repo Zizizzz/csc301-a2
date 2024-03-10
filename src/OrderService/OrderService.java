@@ -395,11 +395,11 @@ public class OrderService {
     }
 
     static class UserHandler implements HttpHandler {
-        private String upath;
+        private static String upath;
 
         // Constructor that takes a string <UserService location> during initialization
         public UserHandler(String upath) {
-            this.upath = upath;
+            UserHandler.upath = upath;
         }
         public void handle(HttpExchange exchange){
             String failedJSON = "{}";
@@ -419,7 +419,7 @@ public class OrderService {
                     JSONObject requestData = (JSONObject) jsonParser.parse(new String(requestBody.readAllBytes()));
 
                     OutputStream outputStream = connection.getOutputStream();
-                    byte[] input = requestData.toString().getBytes("utf-8");
+                    byte[] input = requestData.toString().getBytes(StandardCharsets.UTF_8);
                     outputStream.write(input, 0, input.length);
 
                     int responseCode = connection.getResponseCode();
@@ -560,11 +560,11 @@ public class OrderService {
 
     }
     static class ProductHandler implements HttpHandler {
-        private String ppath;
+        private static String ppath;
 
         // Constructor that takes a string input during initialization
         public ProductHandler(String ppath) {
-            this.ppath = ppath;
+            ProductHandler.ppath = ppath;
         }
         public void handle(HttpExchange exchange){
             String failedJSON = "{}";
@@ -584,7 +584,7 @@ public class OrderService {
                     JSONObject requestData = (JSONObject) jsonParser.parse(new String(requestBody.readAllBytes()));
 
                     OutputStream outputStream = connection.getOutputStream();
-                    byte[] input = requestData.toString().getBytes("utf-8");
+                    byte[] input = requestData.toString().getBytes(StandardCharsets.UTF_8);
                     outputStream.write(input, 0, input.length);
 
                     int responseCode = connection.getResponseCode();
