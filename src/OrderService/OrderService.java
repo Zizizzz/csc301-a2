@@ -198,8 +198,8 @@ public class OrderService {
                                         failedResponseData.put("status", "Invalid Request");
                                         sendResponse(exchange, failedResponseData.toString(), 400);
                                         exchange.close();
+                                        break;
                                     }
-
                                     if (userExist(responseData.get("user_id").toString())){
                                         JSONObject productInfo = getProductInfo(responseData.get("product_id").toString());
                                         if (productInfo.get("quantity") != null){
@@ -220,21 +220,22 @@ public class OrderService {
                                                     exchange.close();
                                                 }
                                             }
+                                            break;
                                         } else{
                                             System.out.println("Product does not exist");
                                             failedResponseData.put("status", "Invalid Request");
                                             sendResponse(exchange, failedResponseData.toString(), 400);
                                             exchange.close();
+                                            break;
                                         }
                                     } else{
                                         System.out.println("User does not exist");
                                         failedResponseData.put("status", "Invalid Request");
                                         sendResponse(exchange, failedResponseData.toString(), 400);
                                         exchange.close();
+                                        break;
                                     }
-                                    break;
                                 }
-
                             case "start":
                                 clearTableData(connection,"orders");
                                 move_table(connection,"orders1","orders");
