@@ -435,7 +435,7 @@ public class UserService {
             }
         } else {
             System.out.println("User details do not match. " + requestData.toString());
-            return 400;
+            return 404;
         }
     }
 
