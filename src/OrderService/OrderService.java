@@ -194,46 +194,24 @@ public class OrderService {
                                     int quantity = Integer.parseInt(responseData.get("quantity").toString());
 
                                     if (userExist(responseData.get("user_id").toString())){
-                                        Map<String, String> productInfo = getProductInfo(responseData.get("product_id").toString());
-                                        if (productInfo.get("code").equals("200")){
-                                            int productQuantity = Integer.parseInt(productInfo.get("quantity"));
-                                            if (productQuantity == -1){
-                                                System.out.println("Invalid product quantity does not exist");
-                                                failedResponseData.put("status", "Invalid Request");
-                                                sendResponse(exchange, failedResponseData.toString(), 400);
+                                        JSONObject productInfo = getProductInfo(responseData.get("product_id").toString());
+                                        if (productInfo.get("quantity") != null){
+                                            int productQuantity = Integer.parseInt(productInfo.get("quantity").toString());
+                                            if (quantity > productQuantity){
+                                                failedResponseData.put("status", "Exceeded quantity limit");
+                                                sendResponse(exchange, failedResponseData.toString(), 409);
                                                 exchange.close();
                                             } else{
-                                                JSONObject currentOrder = getOrderInfo(Integer.parseInt(responseData.get("user_id").toString()));
-                                                if (currentOrder.get("exception") != null){
-                                                    System.out.println("Failed to get existing order");
+                                                responseCode = handleCreateOrder(requestData);
+                                                if (responseCode == 200){
+                                                    responseData.put("status", "Success");
+                                                    sendResponse(exchange, responseData.toString(), responseCode);
+                                                    exchange.close();
+                                                } else {
                                                     failedResponseData.put("status", "Invalid Request");
                                                     sendResponse(exchange, failedResponseData.toString(), 400);
                                                     exchange.close();
-                                                    break;
-                                                } else {
-                                                    if (currentOrder.get(responseData.get("product_id").toString())
-                                                            != null){
-                                                        quantity += Integer.parseInt(currentOrder.get(responseData.
-                                                                get("product_id").toString()).toString());
-                                                    }
-                                                    if (quantity > productQuantity){
-                                                        failedResponseData.put("status", "Exceeded quantity limit");
-                                                        sendResponse(exchange, failedResponseData.toString(), 409);
-                                                        exchange.close();
-                                                    } else{
-                                                        responseCode = handleCreateOrder(requestData);
-                                                        if (responseCode == 200){
-                                                            responseData.put("status", "Success");
-                                                            sendResponse(exchange, responseData.toString(), responseCode);
-                                                            exchange.close();
-                                                        } else {
-                                                            failedResponseData.put("status", "Invalid Request");
-                                                            sendResponse(exchange, failedResponseData.toString(), 400);
-                                                            exchange.close();
-                                                        }
-                                                    }
                                                 }
-
                                             }
                                         } else{
                                             System.out.println("Product does not exist");
@@ -311,10 +289,9 @@ public class OrderService {
             }
             return exist;
         }
-        private static Map<String, String> getProductInfo(String productId){
-            Map<String, String> result = new HashMap<>();
-            String responseCode = "";
-            String quantity = "-1";
+        private static JSONObject getProductInfo(String productId){
+            JSONParser jsonParser = new JSONParser();
+            JSONObject responseData = new JSONObject();
             try {
                 URL url = new URL(ppath + "/" + productId);
 
@@ -322,13 +299,10 @@ public class OrderService {
 
                 connection.setRequestMethod("GET");
 
-                int responseCodeInt = connection.getResponseCode();
-                if (responseCodeInt == HttpURLConnection.HTTP_OK) {
-                    responseCode = "200";
+                int responseCode = connection.getResponseCode();
+                if (responseCode == HttpURLConnection.HTTP_OK) {
 
-                    JSONParser jsonParser = new JSONParser();
-                    JSONObject responseData = (JSONObject) jsonParser.parse(new String(connection.getInputStream().readAllBytes()));
-                    quantity = responseData.get("quantity").toString();
+                    responseData = (JSONObject) jsonParser.parse(new String(connection.getInputStream().readAllBytes()));
                     connection.disconnect();
                 } else{
                     connection.disconnect();
@@ -336,9 +310,7 @@ public class OrderService {
             } catch (Exception e){
                 e.printStackTrace();
             }
-            result.put("quantity", quantity);
-            result.put("code", responseCode);
-            return result;
+            return responseData;
         }
 
 
@@ -349,6 +321,10 @@ public class OrderService {
             int userId = Integer.parseInt(requestData.get("user_id").toString());
             int productId = Integer.parseInt(requestData.get("product_id").toString());
             int quantity = Integer.parseInt(requestData.get("quantity").toString());
+            JSONObject productUpdate = new JSONObject();
+            productUpdate.put("quantity", quantity);
+            productUpdate.put("id", productId);
+            productUpdate.put("command", "update");
 
             String insertQuery = "INSERT INTO orders (id, user_id, product_id, quantity) VALUES (?, ?, ?, ?)";
                 try (PreparedStatement preparedStatement = connection.prepareStatement(insertQuery)) {
@@ -359,7 +335,12 @@ public class OrderService {
 
                     int rowsAffected = preparedStatement.executeUpdate();
                     if (rowsAffected == 1) {
-                        System.out.println("Successfully create new order: " + requestData.toString());
+                        int updateResult = updateProductQuantity(productUpdate);
+                        if (updateResult == 200){
+                            System.out.println("Successfully create new order: " + requestData.toString());
+                        }else {
+                            responseCode = updateResult;
+                        }
                     }
                 } catch (Exception e){
                     responseCode = 400;
@@ -370,27 +351,29 @@ public class OrderService {
             return responseCode;
         }
 
-        private static JSONObject getOrderInfo(int userId) {
-            JSONObject responseData = new JSONObject();
-            // Prepare the SQL query
-            String sql = "SELECT product_id, SUM(quantity) as total_quantity FROM orders WHERE user_id = ? GROUP BY product_id";
-            try (PreparedStatement preparedStatement = connection.prepareStatement(sql)) {
-                // Set the user ID parameter
-                preparedStatement.setInt(1, userId);
+        private static int updateProductQuantity(JSONObject updateData) {
+            int responseCode = 200;
+            try {
+                URL url = new URL(ppath);
 
-                // Execute the query
-                try (ResultSet resultSet = preparedStatement.executeQuery()) {
-                    while (resultSet.next()) {
-                        int productId = resultSet.getInt("product_id");
-                        int totalQuantity = resultSet.getInt("total_quantity");
-                        responseData.put(Integer.toString(productId), totalQuantity);
-                    }
-                }
+                HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+
+                connection.setRequestMethod("POST");
+
+                connection.setDoOutput(true);
+
+                OutputStream outputStream = connection.getOutputStream();
+                byte[] input = updateData.toString().getBytes(StandardCharsets.UTF_8);
+                outputStream.write(input, 0, input.length);
+
+                responseCode = connection.getResponseCode();
+                System.out.println("Response Code: " + responseCode);
+
             } catch (Exception e) {
                 e.printStackTrace();
-                responseData.put("exception", true);
+                responseCode = 400;
             }
-            return responseData;
+            return responseCode;
         }
     }
 
