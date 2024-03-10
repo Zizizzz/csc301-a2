@@ -329,7 +329,6 @@ public class OrderService {
             int productId = Integer.parseInt(requestData.get("product_id").toString());
             int quantity = Integer.parseInt(requestData.get("quantity").toString());
             JSONObject productUpdate = new JSONObject();
-            productUpdate.put("quantity", quantity);
             productUpdate.put("id", productId);
             productUpdate.put("command", "update");
 
@@ -342,6 +341,9 @@ public class OrderService {
 
                     int rowsAffected = preparedStatement.executeUpdate();
                     if (rowsAffected == 1) {
+                        JSONObject currentProductInfo = getProductInfo(requestData.get("product_id").toString());
+                        int newQuantity = Integer.parseInt(currentProductInfo.get("quantity").toString()) - quantity;
+                        productUpdate.put("quantity", newQuantity);
                         int updateResult = updateProductQuantity(productUpdate);
                         if (updateResult == 200){
                             System.out.println("Successfully create new order: " + requestData.toString());
@@ -360,6 +362,7 @@ public class OrderService {
 
         private static int updateProductQuantity(JSONObject updateData) {
             int responseCode = 200;
+
             try {
                 URL url = new URL(ppath);
 
