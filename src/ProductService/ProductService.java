@@ -170,7 +170,8 @@ public class ProductService {
                                 exchange.close();
                                 break;
                             } else {
-                                sendResponse(exchange, responseData.toString(), responseCode);
+                                Map<String, String> fullProductInfo = handleGetProduct(Integer.parseInt(requestData.get("id").toString()));
+                                sendResponse(exchange, fullProductInfo.get("data"), Integer.parseInt(fullProductInfo.get("code")));
                                 exchange.close();
                                 break;
                             }
@@ -188,22 +189,19 @@ public class ProductService {
                                 System.out.println("Bad Request: Exception appear. " + responseData.toString());
                                 sendResponse(exchange, failedJSON, responseCode);
                                 exchange.close();
+                                break;
                             } else if (responseCode == 404) {
                                 System.out.println("Product not Found. " + responseData.toString());
                                 sendResponse(exchange, failedJSON, responseCode);
                                 exchange.close();
+                                break;
                             } else {
                                 Map<String, String> fullProductInfo = handleGetProduct(Integer.parseInt(requestData.get("id").toString()));
-                                if (Objects.equals(fullProductInfo.get("code"), "200")){
-                                    sendResponse(exchange, fullProductInfo.get("message"), responseCode);
-                                    exchange.close();
-                                } else{
-                                    System.out.println("Failed to get the updated user.");
-                                    sendResponse(exchange, failedJSON, 400);
-                                    exchange.close();
-                                }
+                                sendResponse(exchange, fullProductInfo.get("data"), Integer.parseInt(fullProductInfo.get("code")));
+                                exchange.close();
+                                break;
                             }
-                            break;
+
                         case "delete":
                             for (String keyName : keyNames) {
                                 if (requestData.get(keyName) == null) {
@@ -254,14 +252,8 @@ public class ProductService {
                     } else {
                         int productId = Integer.parseInt(pathSegments[2]);
                         Map<String, String> response = handleGetProduct(productId);
-                        if (Integer.parseInt(response.get("code")) == 200){
-                            sendResponse(exchange, response.get("message"), 200);
-                            exchange.close();
-                        } else {
-                            System.out.println(response.get("message"));
-                            sendResponse(exchange, failedJSON, Integer.parseInt(response.get("code")));
-                            exchange.close();
-                        }
+                        sendResponse(exchange, response.get("data"), Integer.parseInt(response.get("code")));
+                        exchange.close();
                     }
                 } else {
                     System.out.println("Only accept POST or GET request.");
@@ -439,7 +431,7 @@ public class ProductService {
     private static Map<String, String> handleGetProduct(int userId) {
         // Implement user retrieval logic
         Map<String, String> response = new HashMap<>();
-        String message = "";
+        JSONObject responseData = new JSONObject();
         String responseCode = "";
         // Prepare the SQL query
         String sql = "SELECT id, name, description, price, quantity FROM products WHERE id = ?";
@@ -452,18 +444,14 @@ public class ProductService {
                 // Check if a user was found
                 if (resultSet.next()) {
                     // Retrieve user details
-                    int retrievedProductId = resultSet.getInt("id");
-                    String name = resultSet.getString("name");
-                    String description = resultSet.getString("description");
-                    float price = resultSet.getFloat("price");
-                    int quantity = resultSet.getInt("quantity");
+                    responseData.put("id", resultSet.getInt("id"));
+                    responseData.put("name", resultSet.getString("name"));
+                    responseData.put("description", resultSet.getString("description"));
+                    responseData.put("price", resultSet.getFloat("price"));
+                    responseData.put("quantity", resultSet.getInt("quantity"));
 
-                    // Use the retrieved user data as needed
-                    message = "Get product: Product ID: " + retrievedProductId + ", Product name: " + name +
-                            ", Description: " + description + ", Price: " + price + ", Quantity: " + quantity;
                     responseCode = "200";
                 } else {
-                    message = "Product not found with ID: " + userId;
                     responseCode = "404";
                 }
 
@@ -471,10 +459,8 @@ public class ProductService {
         } catch (SQLException e) {
             responseCode = "400";
             e.printStackTrace();
-            message = "Failed to get product";
         }
-        System.out.println(message);
-        response.put("message", message);
+        response.put("data", responseData.toString());
         response.put("code", responseCode);
         return response;
     }
