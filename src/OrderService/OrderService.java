@@ -179,7 +179,6 @@ public class OrderService {
                         switch (command){
                             case "place order":
                                 for (String keyName: keyNames){
-                                    responseData.put(keyName, requestData.get(keyName));
                                     if (requestData.get(keyName) == null){
                                         responseCode = 400;
                                         System.out.println("Bad request " + requestData.toString());
@@ -188,12 +187,11 @@ public class OrderService {
                                         exchange.close();
                                         break;
                                     } else {
-                                        responseData.put(keyName, requestData.get(keyName).toString());
+                                        responseData.put(keyName, Integer.parseInt(requestData.get(keyName).toString()));
                                     }
                                 }
                                 if (responseCode != 400){
                                     int quantity = Integer.parseInt(responseData.get("quantity").toString());
-
                                     if (quantity <= 0){
                                         failedResponseData.put("status", "Invalid Request");
                                         sendResponse(exchange, failedResponseData.toString(), 400);
