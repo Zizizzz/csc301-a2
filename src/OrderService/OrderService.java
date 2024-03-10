@@ -183,17 +183,19 @@ public class OrderService {
                                     if (requestData.get(keyName) == null){
                                         responseCode = 400;
                                         System.out.println("Bad request " + requestData.toString());
-                                        sendResponse(exchange, failedJSON, 400);
+                                        failedResponseData.put("status", "Invalid Request");
+                                        sendResponse(exchange, failedResponseData.toString(), 400);
                                         exchange.close();
+                                        break;
                                     } else {
                                         responseData.put(keyName, requestData.get(keyName).toString());
                                     }
                                 }
                                 if (responseCode != 400){
-                                    int quantity = Integer.parseInt(responseData.get("quantity"));
+                                    int quantity = Integer.parseInt(responseData.get("quantity").toString());
 
                                     if (quantity <= 0){
-                                        failedResponseData.put("status", "Negative quantity");
+                                        failedResponseData.put("status", "Invalid Request");
                                         sendResponse(exchange, failedResponseData.toString(), 400);
                                         exchange.close();
                                     }
