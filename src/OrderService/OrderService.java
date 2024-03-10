@@ -212,8 +212,11 @@ public class OrderService {
                                                     exchange.close();
                                                     break;
                                                 } else {
-                                                    quantity += Integer.parseInt(currentOrder.get(responseData.
-                                                            get("product_id").toString()).toString());
+                                                    if (currentOrder.get(responseData.get("product_id").toString())
+                                                            != null){
+                                                        quantity += Integer.parseInt(currentOrder.get(responseData.
+                                                                get("product_id").toString()).toString());
+                                                    }
                                                     if (quantity > productQuantity){
                                                         failedResponseData.put("status", "Exceeded quantity limit");
                                                         sendResponse(exchange, failedResponseData.toString(), 409);
