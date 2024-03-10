@@ -196,6 +196,13 @@ public class OrderService {
                                 if (responseCode != 400){
                                     int quantity = Integer.parseInt(responseData.get("quantity"));
 
+                                    if (quantity <= 0){
+                                        System.out.println("Invalid quantity");
+                                        responseData.put("status", "Invalid Request");
+                                        sendResponse(exchange, responseData.toString(), 400);
+                                        exchange.close();
+                                    }
+
                                     if (userExist(responseData.get("user_id"))){
                                         Map<String, String> productInfo = getProductInfo(responseData.get("product_id"));
                                         if (productInfo.get("code").equals("200")){
