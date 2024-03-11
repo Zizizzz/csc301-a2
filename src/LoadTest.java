@@ -24,61 +24,30 @@ public class LoadTest {
 
 	private static JSONObject readUserJSON(String[] dataElements){
 		String[] keyName = {"command", "id", "username", "email", "password"};
-		List<String> updateKey = Arrays.asList("username", "email", "password");
 		Map<String, String> dataMap = new HashMap<>();
-		int flag = 0;
-		for (String key: keyName){
-			dataMap.put(key, null);
-		}
-		for (int i = 0; i < dataElements.length - 2; i++){
+		for (int i = 0; i < dataElements.length - 1; i++){
 			if (i >= keyName.length){
 				break;
 			}
-			if (i==0 && dataElements[i + 1].equals("update")){
-				flag = 1;
-			}
-			if (i != 0 && i != 1 && flag == 1){
-				String[] currData = dataElements[i + 1].split(":");
-				if (updateKey.contains(currData[0])){
-					dataMap.put(currData[0], currData[1]);
-				}
-			} else {
-				dataMap.put(keyName[i], dataElements[i + 1]);
-			}
+				dataMap.put(keyName[i], dataElements[i]);
 		}
 		return new JSONObject(dataMap);
 	}
 
 	private static JSONObject readProductJSON(String[] dataElements){
 		String[] keyName = {"command", "id", "name", "description", "price", "quantity"};
-		List<String> updateKey = Arrays.asList("name", "description", "price", "quantity");
 		String[] deleteName = {"command", "id", "name", "price", "quantity"};
 		Map<String, String> dataMap = new HashMap<>();
-		int updateFlag = 0;
-		int deleteFlag = 0;
-		for (String key: keyName){
-			dataMap.put(key, null);
-		}
-		for (int i = 0; i < dataElements.length - 1; i++){
+
+		for (int i = 0; i < dataElements.length; i++){
 			if (i >= keyName.length){
 				break;
 			}
-			if (i==0 && dataElements[i + 1].equals("update")){
-				updateFlag = 1;
-				dataMap.put("command", "update");
-			} else if (i==0 && dataElements[i + 1].equals("delete")){
-				deleteFlag = 1;
-				dataMap.put("command", "delete");
-			} else if (i != 0 && i != 1 && updateFlag == 1){
-				String[] currData = dataElements[i + 1].split(":");
-				if (updateKey.contains(currData[0])){
-					dataMap.put(currData[0], currData[1]);
-				}
-			} else if (i != 0 && deleteFlag == 1){
-				dataMap.put(deleteName[i], dataElements[i + 1]);
-			} else {
-				dataMap.put(keyName[i], dataElements[i + 1]);
+			if(i == 3 && dataElements[0].equals("delete")){
+				continue;
 			}
+
+				dataMap.put(keyName[i], dataElements[i]);
 		}
 		return new JSONObject(dataMap);
 	}
@@ -88,11 +57,11 @@ public class LoadTest {
 		for (String key: keyName){
 			dataMap.put(key, null);
 		}
-		for (int i = 0; i < dataElements.length - 3; i++){
+		for (int i = 0; i < dataElements.length - 2; i++){
 			if (i >= keyName.length){
 				break;
 			}
-			dataMap.put(keyName[i], dataElements[i + 1]);
+			dataMap.put(keyName[i], dataElements[i]);
 		}
 		return new JSONObject(dataMap);
 	}
@@ -146,30 +115,35 @@ public class LoadTest {
 				body[2] = name;
 				body[3] = randomString(10);
 
-				int server = rand.nextInt(3);
+//				int server = rand.nextInt(3);
+				int server = 2;
 				switch (server) {
-					case 0:
+					case 0 -> {
 						//user: 14001
-						port =14001;
+						port = 14001;
 						body[4] = randomString(10);
+						System.out.println(Arrays.toString(body));
 						response = readUserJSON(body);
-						break;
-					case 1:
+						System.out.println(response.toString());
+					}
+					case 1 -> {
 						// product: 15000
-						port =15000;
+						port = 15000;
 						body[4] = Integer.toString(rand.nextInt(100));
 						body[5] = Integer.toString(rand.nextInt(100));
 						response = readProductJSON(body);
-						break;
-					default:
+						System.out.println(response.toString());
+					}
+					default -> {
 						//OrderService 14000
-						port =14000;
+						port = 14000;
 						body[0] = "place order";
 						body[1] = id;
-						body[2] =Integer.toString(rand.nextInt(10));
+						body[2] = Integer.toString(rand.nextInt(10));
 						body[3] = Integer.toString(rand.nextInt(100));
 						response = readOrderJSON(body);
-						break;
+						System.out.println(response.toString());
+					}
 				}
 				int randomInt = rand.nextInt(2); // Generates a random integer from 0 (inclusive) to 100 (exclusive)
 				//put
