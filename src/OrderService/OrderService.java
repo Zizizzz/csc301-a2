@@ -203,40 +203,39 @@ public class OrderService {
                                     exchange.close();
                                     break;
                                 }
-                                if (userExist(responseData.get("user_id").toString())){
-                                    JSONObject productInfo = getProductInfo(responseData.get("product_id").toString());
-                                    if (productInfo.get("quantity") != null){
-                                        int productQuantity = Integer.parseInt(productInfo.get("quantity").toString());
-                                        if (quantity > productQuantity){
-                                            failedResponseData.put("status", "Exceeded quantity limit");
-                                            sendResponse(exchange, failedResponseData.toString(), 409);
-                                            exchange.close();
-                                        } else{
-                                            responseCode = handleCreateOrder(requestData);
-                                            if (responseCode == 200){
-                                                responseData.put("status", "Success");
-                                                sendResponse(exchange, responseData.toString(), responseCode);
-                                                exchange.close();
-                                            } else {
-                                                failedResponseData.put("status", "Invalid Request");
-                                                sendResponse(exchange, failedResponseData.toString(), 400);
-                                                exchange.close();
-                                            }
-                                        }
-                                        break;
-                                    } else{
-                                        System.out.println("Product does not exist");
-                                        failedResponseData.put("status", "Invalid Request");
-                                        sendResponse(exchange, failedResponseData.toString(), 400);
-                                        exchange.close();
-                                        break;
-                                    }
-                                } else{
+                                if (!userExist(responseData.get("user_id").toString())) {
                                     System.out.println("User does not exist");
                                     failedResponseData.put("status", "Invalid Request");
                                     sendResponse(exchange, failedResponseData.toString(), 400);
                                     exchange.close();
                                     break;
+                                }
+                                JSONObject productInfo = getProductInfo(responseData.get("product_id").toString());
+                                if (productInfo.get("quantity") == null){
+                                    System.out.println("Product does not exist");
+                                    failedResponseData.put("status", "Invalid Request");
+                                    sendResponse(exchange, failedResponseData.toString(), 400);
+                                    exchange.close();
+                                    break;
+                                }
+                                int productQuantity = Integer.parseInt(productInfo.get("quantity").toString());
+                                if (quantity > productQuantity){
+                                    failedResponseData.put("status", "Exceeded quantity limit");
+                                    sendResponse(exchange, failedResponseData.toString(), 409);
+                                    exchange.close();
+                                    break;
+                                } else{
+                                    responseCode = handleCreateOrder(requestData);
+                                    if (responseCode == 200){
+                                        responseData.put("status", "Success");
+                                        sendResponse(exchange, responseData.toString(), responseCode);
+                                        exchange.close();
+                                        break;
+                                    } else {
+                                        failedResponseData.put("status", "Invalid Request");
+                                        sendResponse(exchange, failedResponseData.toString(), 400);
+                                        exchange.close();
+                                    }
                                 }
                             case "start":
                                 clearTableData(connection,"orders");
@@ -420,20 +419,25 @@ public class OrderService {
 
                     int responseCode = connection.getResponseCode();
                     System.out.println("Response Code: " + responseCode);
-                    if (responseCode == HttpURLConnection.HTTP_CONFLICT) {
-                        System.out.println("conflict");
-                    } try (BufferedReader reader = new BufferedReader(new InputStreamReader(connection.getInputStream()))) {
-                        StringBuilder responseText = new StringBuilder();
-                        String line;
-                        while ((line = reader.readLine()) != null) {
-                            responseText.append(line);
+                    if (responseCode == HttpURLConnection.HTTP_OK) {
+                        try (BufferedReader reader = new BufferedReader(new InputStreamReader(connection.getInputStream()))) {
+                            StringBuilder responseText = new StringBuilder();
+                            String line;
+                            while ((line = reader.readLine()) != null) {
+                                responseText.append(line);
+                            }
+                            System.out.println("Response Data: " + responseText.toString());
+                            sendResponse(exchange, responseText.toString(), responseCode);
+                            connection.disconnect();
+                            exchange.close();
+                        } catch (IOException e) {
+                            System.out.println("Cannot read response.");
+                            sendResponse(exchange, failedJSON, responseCode);
+                            connection.disconnect();
+                            exchange.close();
                         }
-                        System.out.println("Response Data: " + responseText.toString());
-                        sendResponse(exchange, responseText.toString(), responseCode);
-                        connection.disconnect();
-                        exchange.close();
-                    } catch(IOException e){
-                        System.out.println("Cannot read response.");
+                    } else{
+                        System.out.println("POST request fail: " + requestData.toString());
                         sendResponse(exchange, failedJSON, responseCode);
                         connection.disconnect();
                         exchange.close();
@@ -453,11 +457,11 @@ public class OrderService {
                                 if (userExist(pathSegments[3])){
                                     Map<String, String> response = handleGetOrder(Integer.parseInt(pathSegments[3]));
                                     if (Objects.equals(response.get("code"), "200")){
-                                        System.out.println("Successfully get user order.");
+                                        System.out.println("Successfully get user's order history.");
                                         sendResponse(exchange, response.get("data"), 200);
                                         exchange.close();
                                     } else {
-                                        System.out.println("Failed to get user order.");
+                                        System.out.println("Failed to get user's order history.");
                                         sendResponse(exchange, failedJSON, Integer.parseInt(response.get("code")));
                                         exchange.close();
                                     }
@@ -494,7 +498,7 @@ public class OrderService {
                                 exchange.close();
                             } else{
                                 System.out.println("GET request fail.");
-                                sendResponse(exchange, failedJSON, 400);
+                                sendResponse(exchange, failedJSON, responseCode);
                                 connection.disconnect();
                                 exchange.close();
                             }
@@ -594,20 +598,25 @@ public class OrderService {
 
                     int responseCode = connection.getResponseCode();
                     System.out.println("Response Code: " + responseCode);
-                    if (responseCode == HttpURLConnection.HTTP_CONFLICT) {
-                        System.out.println("conflict");
-                    } try (BufferedReader reader = new BufferedReader(new InputStreamReader(connection.getInputStream()))) {
-                        StringBuilder responseText = new StringBuilder();
-                        String line;
-                        while ((line = reader.readLine()) != null) {
-                            responseText.append(line);
+                    if (responseCode == HttpURLConnection.HTTP_OK) {
+                        try (BufferedReader reader = new BufferedReader(new InputStreamReader(connection.getInputStream()))) {
+                            StringBuilder responseText = new StringBuilder();
+                            String line;
+                            while ((line = reader.readLine()) != null) {
+                                responseText.append(line);
+                            }
+                            System.out.println("Response Data: " + responseText.toString());
+                            sendResponse(exchange, responseText.toString(), responseCode);
+                            connection.disconnect();
+                            exchange.close();
+                        } catch (IOException e) {
+                            System.out.println("Cannot read response.");
+                            sendResponse(exchange, failedJSON, responseCode);
+                            connection.disconnect();
+                            exchange.close();
                         }
-                        System.out.println("Response Data: " + responseText.toString());
-                        sendResponse(exchange, responseText.toString(), responseCode);
-                        connection.disconnect();
-                        exchange.close();
-                    } catch(IOException e){
-                        System.out.println("Cannot read response.");
+                    } else{
+                        System.out.println("POST request fail: " + requestData.toString());
                         sendResponse(exchange, failedJSON, responseCode);
                         connection.disconnect();
                         exchange.close();
@@ -643,7 +652,7 @@ public class OrderService {
                             exchange.close();
                         } else{
                             System.out.println("GET request fail.");
-                            sendResponse(exchange, failedJSON, 400);
+                            sendResponse(exchange, failedJSON, responseCode);
                             connection.disconnect();
                             exchange.close();
                         }
