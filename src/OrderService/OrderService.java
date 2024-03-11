@@ -206,7 +206,7 @@ public class OrderService {
                                 if (!userExist(responseData.get("user_id").toString())) {
                                     System.out.println("User does not exist");
                                     failedResponseData.put("status", "Invalid Request");
-                                    sendResponse(exchange, failedResponseData.toString(), 400);
+                                    sendResponse(exchange, failedResponseData.toString(), 404);
                                     exchange.close();
                                     break;
                                 }
@@ -214,7 +214,7 @@ public class OrderService {
                                 if (productInfo.get("quantity") == null){
                                     System.out.println("Product does not exist");
                                     failedResponseData.put("status", "Invalid Request");
-                                    sendResponse(exchange, failedResponseData.toString(), 400);
+                                    sendResponse(exchange, failedResponseData.toString(), 404);
                                     exchange.close();
                                     break;
                                 }
