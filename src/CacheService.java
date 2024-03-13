@@ -120,15 +120,10 @@ public class CacheService {
 
         server.start();
 
-        System.out.println("CacheServer started on port " + port);
-
-//        往改寫器發東西
     }
 
-    private static int getOrderAmount(){  //改写
-        int orderCount = 0;
-        // Prepare the SQL query to count orders
-        return orderCount;
+    private static int getOrderAmount(){
+        return orderServiceCache.size();
     }
 
     static class PostHandler implements HttpHandler {
@@ -151,19 +146,19 @@ public class CacheService {
                         String command = requestData.get("command").toString();
                         switch (command){
                             case "place order":
-                                String badCreateRequest = "Bad request: ";
                                 for (String keyName: keyNames){
-                                    if (requestData.get(keyName) == null){
+                                    Object value = requestData.get(keyName);
+                                    if (value == null){
                                         responseCode = 400;
-                                        badCreateRequest = badCreateRequest + "\"" + keyName + "\", ";
                                     } else {
-                                        responseData.put(keyName, Integer.parseInt(requestData.get(keyName).toString()));
+                                        if (value instanceof Number) {
+                                            responseData.put(keyName, Integer.parseInt(value.toString()));
+                                        } else {
+                                            responseCode = 400;
+                                        }
                                     }
                                 }
                                 if (responseCode == 400){
-                                    badCreateRequest = badCreateRequest.substring(0, badCreateRequest.length() - 2) +
-                                            " missing. " + requestData.toString();
-                                    System.out.println(badCreateRequest);
                                     failedResponseData.put("status", "Invalid Request");
                                     sendResponse(exchange, failedResponseData.toString(), 400);
                                     exchange.close();
@@ -177,20 +172,18 @@ public class CacheService {
                                     break;
                                 }
                                 if (!userExist(responseData.get("user_id").toString())) {
-                                    System.out.println("User does not exist");
+                                    failedResponseData.put("status", "Invalid Request");
+                                    sendResponse(exchange, failedResponseData.toString(), 404);
+                                    exchange.close();
+                                    break;
+                                }
+                                if (!productServiceCache.containsKey(responseData.get("product_id").toString())){
                                     failedResponseData.put("status", "Invalid Request");
                                     sendResponse(exchange, failedResponseData.toString(), 404);
                                     exchange.close();
                                     break;
                                 }
                                 String[] productInfo = getProductInfo(responseData.get("product_id").toString());
-                                if (productInfo[3] == null){
-                                    System.out.println("Product does not exist");
-                                    failedResponseData.put("status", "Invalid Request");
-                                    sendResponse(exchange, failedResponseData.toString(), 404);
-                                    exchange.close();
-                                    break;
-                                }
                                 int productQuantity = Integer.parseInt(productInfo[3]);
                                 if (quantity > productQuantity){
                                     failedResponseData.put("status", "Exceeded quantity limit");
@@ -220,7 +213,6 @@ public class CacheService {
 
                 } else {
                     // Send a 405 Method Not Allowed response for non-POST requests
-                    System.out.println("OrderService only accept POST request");
                     failedResponseData.put("status", "Invalid Request");
                     sendResponse(exchange, failedResponseData.toString(), 405);
                     exchange.close();
@@ -281,8 +273,9 @@ public class CacheService {
             Matcher matcher = pattern.matcher(email);
             return matcher.matches();
         }
+
         @Override
-        public void handle(HttpExchange exchange){
+        public void handle(HttpExchange exchange) {
             String failedJSON = "{}";
             // Handle post request for /user
             try {
@@ -299,56 +292,46 @@ public class CacheService {
                     int responseCode = 200;
                     switch (requestData.get("command").toString()) {
                         case "create":
-                            String badCreateRequest = "Bad request: ";
-                            for (String keyName: keyNames){
-                                if (requestData.get(keyName) == null){
+                            for (String keyName : keyNames) {
+                                if (requestData.get(keyName) == null) {
                                     responseCode = 400;
-                                    badCreateRequest = badCreateRequest + "\"" + keyName + "\", ";
                                 }
                             }
-                            if (responseCode == 400){
-                                badCreateRequest = badCreateRequest.substring(0, badCreateRequest.length() - 2) +
-                                        " missing. " + requestData.toString();
-                                System.out.println(badCreateRequest);
+                            if (responseCode == 400) {
                                 sendResponse(exchange, failedJSON, responseCode);
                                 exchange.close();
                                 break;
                             }
                             responseCode = handleCreateUser(requestData);
-                            if (responseCode == 409){
+                            if (responseCode == 409) {
                                 sendResponse(exchange, failedJSON, responseCode);
                                 exchange.close();
                                 break;
-                            } else if (responseCode == 400){
-                                System.out.println("Bad Request: Exception appear. " + requestData.toString());
+                            } else if (responseCode == 400) {
                                 sendResponse(exchange, failedJSON, responseCode);
                                 exchange.close();
                                 break;
-                            } else{
+                            } else {
                                 Map<String, String> fullUserInfo = handleGetUser(requestData.get("id").toString());
                                 sendResponse(exchange, fullUserInfo.get("data"), Integer.parseInt(fullUserInfo.get("code")));
                                 exchange.close();
                                 break;
                             }
                         case "update":
-                            if (requestData.get("id") == null){
+                            if (requestData.get("id") == null) {
                                 responseCode = 400;
-                                String badUpdateRequest = "Bad request: Missing user id.";
-                                System.out.println(badUpdateRequest + requestData);
                                 sendResponse(exchange, failedJSON, responseCode);
                                 exchange.close();
                                 break;
                             }
                             responseCode = handleUpdateUser(requestData);
-                            if (responseCode == 400){
-                                System.out.println("Bad Request: Exception appear. " + responseData.toString());
+                            if (responseCode == 400) {
                                 sendResponse(exchange, failedJSON, responseCode);
                                 exchange.close();
-                            } else if (responseCode == 404){
-                                System.out.println("User not Found. " + responseData.toString());
+                            } else if (responseCode == 404) {
                                 sendResponse(exchange, failedJSON, responseCode);
                                 exchange.close();
-                            } else{
+                            } else {
                                 Map<String, String> fullUserInfo = handleGetUser(requestData.get("id").toString());
                                 sendResponse(exchange, fullUserInfo.get("data"), Integer.parseInt(fullUserInfo.get("code")));
                                 exchange.close();
@@ -356,12 +339,12 @@ public class CacheService {
                             }
                             break;
                         case "delete":
-                            for (String keyName: keyNames){
-                                if (requestData.get(keyName) == null){
+                            for (String keyName : keyNames) {
+                                if (requestData.get(keyName) == null) {
                                     responseCode = 400;
                                 }
                             }
-                            if (responseCode == 400){
+                            if (responseCode == 400) {
                                 sendResponse(exchange, failedJSON, responseCode);
                                 exchange.close();
                                 break;
@@ -372,60 +355,54 @@ public class CacheService {
                             break;
                         default:
                             // Handle unknown operation
-                            System.out.println("Unknown operation.");
                             sendResponse(exchange, failedJSON, 400);
                             exchange.close();
                             break;
                     }
                 } else if ("GET".equals(exchange.getRequestMethod())) {
                     String path = exchange.getRequestURI().getPath();
-                    String[]    pathSegments = path.split("/");
-                    if (pathSegments.length >= 3){
-                        if (Objects.equals(pathSegments[2], "purchase")){
-                            if (pathSegments.length != 4){
-                                System.out.println("Wrong purchase url: user id missing.");
+                    String[] pathSegments = path.split("/");
+                    if (pathSegments.length >= 3) {
+                        if (Objects.equals(pathSegments[2], "purchase")) {
+                            if (pathSegments.length != 4) {
                                 sendResponse(exchange, failedJSON, 400);
                                 exchange.close();
-                            } else{
-                                if (userServiceCache.containsKey(pathSegments[3])){
+                            } else {
+                                if (userServiceCache.containsKey(pathSegments[3])) {
                                     Map<String, String> response = handleGetOrder(pathSegments[3]);
-                                    if (Objects.equals(response.get("code"), "200")){
-                                        System.out.println("Successfully get user's order history.");
+                                    if (Objects.equals(response.get("code"), "200")) {
                                         sendResponse(exchange, response.get("data"), 200);
                                         exchange.close();
                                     } else {
-                                        System.out.println("Failed to get user's order history.");
                                         sendResponse(exchange, failedJSON, Integer.parseInt(response.get("code")));
                                         exchange.close();
                                     }
                                 } else {
-                                    System.out.println("User does not exist.");
                                     sendResponse(exchange, failedJSON, 404);
                                     exchange.close();
                                 }
                             }
-                        } else{
+                        } else {
                             int userId = Integer.parseInt(pathSegments[2]);
                             Map<String, String> response = handleGetUser(pathSegments[2]);
                             sendResponse(exchange, response.get("data"), Integer.parseInt(response.get("code")));
                             exchange.close();
                         }
                     } else {
-                        System.out.println("Get request missing information.");
                         sendResponse(exchange, failedJSON, 400);
                         exchange.close();
                     }
                 } else {
-                    System.out.println("Only accept POST or GET request.");
                     sendResponse(exchange, failedJSON, 405);
                     exchange.close();
                 }
-            } catch(Exception e){
+            } catch (Exception e) {
                 e.printStackTrace();
                 sendResponse(exchange, failedJSON, 400);
                 exchange.close();
             }
         }
+
         private static Map<String, String> handleGetOrder(String userId) {
             Map<String, String> response = new HashMap<>();
             JSONObject responseData = new JSONObject();
@@ -435,7 +412,7 @@ public class CacheService {
             for (Map.Entry<String, String[]> entry : orderServiceCache.entrySet()) {
                 String[] orderDetails = entry.getValue();
                 // Assuming orderDetails[0] is userId, orderDetails[1] is productId, and orderDetails[2] is quantity
-                if ((userId).equals(orderDetails[0])){
+                if ((userId).equals(orderDetails[0])) {
                     userExists = true;
                     String productId = orderDetails[1];
                     int quantity = Integer.parseInt(orderDetails[2]);
@@ -462,7 +439,7 @@ public class CacheService {
             return response;
         }
 
-        private static int handleCreateUser(JSONObject requestData){
+        private static int handleCreateUser(JSONObject requestData) {
             // Implement user creation logic
             int responseCode = 200;
             String userId = requestData.get("id").toString();
@@ -473,47 +450,47 @@ public class CacheService {
             // Validate the user data
             if (username.isEmpty() || !isValidEmail(email) ||
                     password.isEmpty() || Integer.parseInt(userId) < 0) {
-                // Bad Request due to missing, empty, or invalid fields
                 return 400;
             }
 
-            if (userServiceCache.containsKey(userId)){
-                System.out.println("Duplicate user already exist. " + requestData.toString());
+            if (userServiceCache.containsKey(userId)) {
                 responseCode = 409;
             } else {
-                String[] newUser = {username,email,password};
+                String[] newUser = {username, email, password};
                 userServiceCache.put(userId, newUser);
             }
             return responseCode;
         }
 
-        private static int handleUpdateUser(JSONObject requestData){
-//            username, email, password
+        private static int handleUpdateUser(JSONObject requestData) {
+            //username, email, password
             // Implement user update logic
             int responseCode = 200;
             String userId = requestData.get("id").toString();
-            if (!userServiceCache.containsKey(userId)){
-                System.out.println("User haven't been create. " + requestData.toString());
+            if (!userServiceCache.containsKey(userId)) {
+                //User haven't been create
                 responseCode = 404;
             } else {
                 String[] newUser = userServiceCache.get(userId);
-                if (requestData.get("username") != null){
+                if (requestData.get("username") != null) {
                     String username = requestData.get("username").toString();
-                    if (username.isEmpty()){
+                    if (username.isEmpty()) {
                         return 400;
                     }
                     newUser[0] = username;
-                } if (requestData.get("email") != null) {
+                }
+                if (requestData.get("email") != null) {
                     String email = requestData.get("email").toString();
 
-                    if (!isValidEmail(email)){
+                    if (!isValidEmail(email)) {
                         return 400;
                     }
                     newUser[1] = email;
-                } if (requestData.get("password") != null){
+                }
+                if (requestData.get("password") != null) {
                     String password = hashPassword(requestData.get("password").toString());
 
-                    if (password.isEmpty()){
+                    if (password.isEmpty()) {
                         return 400;
                     }
                     newUser[2] = password;
@@ -534,11 +511,11 @@ public class CacheService {
             if (exist == 0) {
                 userServiceCache.remove(userId);
                 return 200;
-            }else if (exist == 1) {
-                System.out.println("User data didn't match");
+            } else if (exist == 1) {
+                //User data didn't match
                 return 404;
-            }else{
-                System.out.println("User not exist or Missing arguments");
+            } else {
+                //User not exist or Missing arguments
                 return 404;
             }
         }
@@ -547,7 +524,7 @@ public class CacheService {
             Map<String, String> response = new HashMap<>();
             JSONObject responseData = new JSONObject();
             String responseCode = "";
-            if (!userServiceCache.containsKey(userId)){
+            if (!userServiceCache.containsKey(userId)) {
                 responseCode = "404";
             } else {
                 responseCode = "200";
@@ -562,13 +539,13 @@ public class CacheService {
             return response;
         }
 
-    //改完了
-        public static int userCheck(String userId, String username, String email, String password){
+        //改完了
+        public static int userCheck(String userId, String username, String email, String password) {
             String[] userInfo = userServiceCache.get(userId);
             if (userInfo != null && userInfo.length == 3) {
-                if(userInfo[0].equals(username) && userInfo[1].equals(email) && userInfo[2].equals(password)){
+                if (userInfo[0].equals(username) && userInfo[1].equals(email) && userInfo[2].equals(password)) {
                     return 0;
-                }else{
+                } else {
                     return 1;
                 }
             }
@@ -578,6 +555,7 @@ public class CacheService {
 
         /**
          * hash the password by SHA-256 message digest
+         *
          * @param password
          * @return
          */
@@ -602,10 +580,9 @@ public class CacheService {
                 return hexString.toString();
             } catch (NoSuchAlgorithmException e) {
                 // Handle the exception (e.g., log it or throw a runtime exception)
-                e.printStackTrace();
                 return null;
             }
-
+        }
     }
     static class ProductHandler implements HttpHandler {
 
@@ -629,32 +606,27 @@ public class CacheService {
                     int responseCode = 200;
                     switch (requestData.get("command").toString()) {
                         case "create":
-                            String badCreateRequest = "Bad request: ";
                             for (String keyName : keyNames) {
                                 if (requestData.get(keyName) == null) {
                                     responseCode = 400;
-                                    badCreateRequest = badCreateRequest + "\"" + keyName + "\", ";
                                 }
                             }
                             if (requestData.get("description") == null) {
                                 responseCode = 400;
-                                badCreateRequest = badCreateRequest + "\"" + "description" + "\", ";
                             }
                             if (responseCode == 400) {
-                                badCreateRequest = badCreateRequest.substring(0, badCreateRequest.length() - 2) + " missing. ";
-                                System.out.println(badCreateRequest + responseData.toString());
                                 sendResponse(exchange, failedJSON, responseCode);
                                 exchange.close();
                                 break;
                             }
                             responseCode = handleCreateProduct(requestData);
                             if (responseCode == 409) {
-                                System.out.println("Duplicate product already exist. "+ requestData.toString());
-                                sendResponse(exchange, failedJSON , responseCode);
+
+                                sendResponse(exchange, failedJSON, responseCode);
                                 exchange.close();
                                 break;
                             } else if (responseCode == 400) {
-                                System.out.println("Bad Request: Exception appear. " + requestData.toString());
+
                                 sendResponse(exchange, failedJSON, responseCode);
                                 exchange.close();
                                 break;
@@ -667,20 +639,18 @@ public class CacheService {
                         case "update":
                             if (requestData.get("id") == null) {
                                 responseCode = 400;
-                                String badUpdateRequest = "Bad request: Missing product id. ";
-                                System.out.println(badUpdateRequest + responseData.toString());
                                 sendResponse(exchange, failedJSON, responseCode);
                                 exchange.close();
                                 break;
                             }
                             responseCode = handleUpdateProduct(requestData);
                             if (responseCode == 400) {
-                                System.out.println("Bad Request: Exception appear. " + responseData.toString());
+
                                 sendResponse(exchange, failedJSON, responseCode);
                                 exchange.close();
                                 break;
                             } else if (responseCode == 404) {
-                                System.out.println("Product not Found. " + responseData.toString());
+;
                                 sendResponse(exchange, failedJSON, responseCode);
                                 exchange.close();
                                 break;
@@ -709,7 +679,7 @@ public class CacheService {
 
                         default:
                             // Handle unknown operation
-                            System.out.println("Unknown operation: " + requestData.toString());
+
                             sendResponse(exchange, failedJSON, 400);
                             exchange.close();
                             break;
@@ -718,17 +688,23 @@ public class CacheService {
                     String path = exchange.getRequestURI().getPath();
                     String[] pathSegments = path.split("/");
                     if (pathSegments.length != 3) {
-                        System.out.println("Incorrect Get request");
+
                         sendResponse(exchange, failedJSON, 400);
                         exchange.close();
                     } else {
-                        int productId = Integer.parseInt(pathSegments[2]);
-                        Map<String, String> response = handleGetProduct(productId);
-                        sendResponse(exchange, response.get("data"), Integer.parseInt(response.get("code")));
-                        exchange.close();
+                        try {
+                            // Try to parse the productId and handle the request if it is an integer
+                            int productId = Integer.parseInt(pathSegments[2]);
+                            Map<String, String> response = handleGetProduct(String.valueOf(productId));
+                            sendResponse(exchange, response.get("data"), Integer.parseInt(response.get("code")));
+                            exchange.close();
+                        } catch (NumberFormatException e) {
+                            sendResponse(exchange, failedJSON, 400);
+                            exchange.close();
+                        }
                     }
                 } else {
-                    System.out.println("Only accept POST or GET request.");
+
                     sendResponse(exchange, failedJSON, 405);
                     exchange.close();
                 }
@@ -741,7 +717,6 @@ public class CacheService {
 
 
 
-    }
         private static int handleCreateProduct(JSONObject requestData){
             int responseCode = 200;
             try {
@@ -757,7 +732,7 @@ public class CacheService {
                 }
 
                 if (productServiceCache.containsKey(productId)) {
-                    System.out.println("Duplicate product already exist. " + requestData.toString());
+
                     responseCode = 409;
                 } else {
                     String[] newProduct = {name, description, Float.toString(price), Integer.toString(quantity)};
@@ -766,7 +741,7 @@ public class CacheService {
             }catch (Exception e){
                 responseCode = 400;
                 e.printStackTrace();
-                System.out.println("Failed to create product: " + requestData.toString());
+
             }
             return responseCode;
         }
@@ -775,7 +750,7 @@ public class CacheService {
             int responseCode = 200;
             String productId = requestData.get("id").toString();
             if (!productServiceCache.containsKey(productId)){
-                System.out.println("Product doesn't exist.");
+
                 responseCode = 404;
             } else {
                 String[] newProduct = productServiceCache.get(productId);
@@ -818,65 +793,43 @@ public class CacheService {
         }
 
         private static int handleDeleteProduct(JSONObject requestData) throws IOException, SQLException {
-            int productId = Integer.parseInt(requestData.get("id").toString());
+            String productId = requestData.get("id").toString();
             String productName = requestData.get("name").toString();
-            float price = Float.parseFloat(requestData.get("price").toString());
-            int quantity = Integer.parseInt(requestData.get("quantity").toString());
+            String price = requestData.get("price").toString();
+            String quantity = requestData.get("quantity").toString();
+            int status = productCheck(productId, productName, price, quantity);
+            if (status == 2){
 
-            if (productCheck(productId, productName, price, quantity)) {
-                String deleteQuery = "DELETE FROM products WHERE id = ?";
-                try (PreparedStatement preparedStatement = connection.prepareStatement(deleteQuery)) {
-                    preparedStatement.setInt(1, productId);
-                    int rowsAffected = preparedStatement.executeUpdate();
-                    if (rowsAffected > 0) {
-                        System.out.println("Successfully delete product: " + requestData.toString());
-                        return 200;
-                    } else {
-                        System.out.println("product not found. " + requestData.toString());
-                        return 404;
-                    }
-                } catch (SQLException e) {
-                    System.out.println("Internal Server Error. " + requestData.toString());
-                    e.printStackTrace();
-                    return 500;
-                }
-            } else {
-                System.out.println("product details do not match. " + requestData.toString());
                 return 404;
             }
+            if (status == 1){
+
+                return 404;
+            }
+
+            productServiceCache.remove(productId);
+            return 200;
         }
 
         private static Map<String, String> handleGetProduct(String productId) {
-            // Implement user retrieval logic
             Map<String, String> response = new HashMap<>();
             JSONObject responseData = new JSONObject();
             String responseCode = "";
-            // Prepare the SQL query
-            String sql = "SELECT id, name, description, price, quantity FROM products WHERE id = ?";
-            try (PreparedStatement preparedStatement = connection.prepareStatement(sql)) {
-                // Set the user ID parameter
-                preparedStatement.setInt(1, userId);
+            if (!productServiceCache. containsKey(productId)){
 
-                // Execute the query
-                try (ResultSet resultSet = preparedStatement.executeQuery()) {
-                    // Check if a user was found
-                    if (resultSet.next()) {
-                        // Retrieve user details
-                        responseData.put("id", resultSet.getInt("id"));
-                        responseData.put("name", resultSet.getString("name"));
-                        responseData.put("description", resultSet.getString("description"));
-                        responseData.put("price", resultSet.getFloat("price"));
-                        responseData.put("quantity", resultSet.getInt("quantity"));
+                responseCode = "404";
+            } else {
+                String[] productInfo = productServiceCache.get(productId);
+                if (productInfo.length != 4){
 
-                        responseCode = "200";
-                    } else {
-                        responseCode = "404";
-                    }
-
+                    responseCode = "400";
+                } else {
+                    responseData.put("name", productInfo[0]);
+                    responseData.put("description", productInfo[1]);
+                    responseData.put("price", Float.parseFloat(productInfo[2]));
+                    responseData.put("quantity", Integer.parseInt(productInfo[3]));
+                    responseCode = "200";
                 }
-            } catch (SQLException e) {
-                responseCode = "400";
-                e.printStackTrace();
             }
             response.put("data", responseData.toString());
             response.put("code", responseCode);
@@ -885,8 +838,8 @@ public class CacheService {
 
         public static Integer productCheck(String productId, String productName, String price, String quantity){
             String[] productInfo = productServiceCache.get(productId);
-            if (productInfo != null && productInfo.length == 3) {
-                if(productInfo[0].equals(productName) && productInfo[1].equals(price) && productInfo[2].equals(quantity)){
+            if (productInfo != null && productInfo.length == 4) {
+                if(productInfo[0].equals(productName) && productInfo[2].equals(price) && productInfo[3].equals(quantity)){
                     return 0;
                 }else{
                     return 1;
