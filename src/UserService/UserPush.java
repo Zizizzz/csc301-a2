@@ -125,15 +125,23 @@ public class UserPush {
             try {
                 if ("POST".equals(exchange.getRequestMethod())) {
                     InputStream requestBody = exchange.getRequestBody();
-                    JSONObject json = new JSONObject(new JSONTokener(requestBody));
-                    newTable = new HashMap<>(json.toMap());
-                    int responseCode = 200;
-                    sendResponse(exchange, failedJSON, responseCode);
-                    exchange.close();
+                    JSONParser parser = new JSONParser();
+                    Object obj = parser.parse(new InputStreamReader(requestBody, StandardCharsets.UTF_8));
+                    if (obj instanceof JSONObject) {
+                        JSONObject json = (JSONObject) obj;
+                        newTable = new HashMap<>(json);
+
+                        int responseCode = 200;
+                        sendResponse(exchange, failedJSON, responseCode);
+                    } else {
+                        System.err.println("Invalid JSON format in request body");
+                        sendResponse(exchange, failedJSON, 400);
+                    }
                 }
-            } catch (Exception e) {
+            } catch (IOException | ParseException e) {
                 e.printStackTrace();
                 sendResponse(exchange, failedJSON, 400);
+            }finally {
                 exchange.close();
             }
         }
