@@ -11,7 +11,7 @@
     "port": 15000,
     "ip": "127.0.0.1"
   },
-  "InterServiceCommunication": {
+  "CacheService": {
     "port": 14002,
     "ip": "127.0.0.1"
   }
