@@ -4,9 +4,12 @@ import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
 import com.sun.net.httpserver.HttpServer;
 import org.json.simple.JSONObject;
+import org.json.simple.parser.JSONParser;
+import org.json.simple.parser.ParseException;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
@@ -85,25 +88,26 @@ public class ProductPush {
     private static void pushNewTableToDB() {
         try {
             if (newTable != null && !newTable.isEmpty()) {
-                clearTableData(connection, "users");
+                clearTableData(connection, "products");
                 for (Map.Entry<String, String[]> entry : newTable.entrySet()) {
                     String key = entry.getKey();
                     int id = Integer.parseInt(key);
                     String[] value = entry.getValue();
 
-                    if (value.length >= 3) {
+                    if (value.length >= 4) {
                         String name = value[0];
-                        String email = value[1];
-                        String password = value[2];
+                        String description = value[1];
+                        float price = Float.parseFloat(value[2]);
+                        int quantity = Integer.parseInt(value[3]);
 
-                        String sql = "INSERT INTO users (id, username, email, password) VALUES (?, ?, ?, ?)";
+                        String sql = "INSERT INTO products (id, name, description, price, quantity) VALUES (?, ?, ?, ?, ?)";
                         try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
                             pstmt.setInt(1, id);
                             pstmt.setString(1, name);
-                            pstmt.setString(2, email);
-                            pstmt.setString(3, password);
-                            pstmt.executeUpdate();
-                            System.out.println("Inserted: Id = " + id +", Name = " + name + ", Email = " + email + ", Password = " + password);
+                            pstmt.setString(2, description);
+                            pstmt.setFloat(3, price);
+                            pstmt.setInt(4, quantity);
+                            System.out.println("Inserted: Id = " + id +", name = " + name + ", description = " + description + ", price = " + price + ", quantity = " + quantity);
                         }
                     } else {
                         System.err.println("Invalid array length for key: " + key);
@@ -124,15 +128,23 @@ public class ProductPush {
             try {
                 if ("POST".equals(exchange.getRequestMethod())) {
                     InputStream requestBody = exchange.getRequestBody();
-                    JSONObject json = new JSONObject(new JSONTokener(requestBody));
-                    newTable = new HashMap<>(json.toMap());
-                    int responseCode = 200;
-                    sendResponse(exchange, failedJSON, responseCode);
-                    exchange.close();
+                    JSONParser parser = new JSONParser();
+                    Object obj = parser.parse(new InputStreamReader(requestBody, StandardCharsets.UTF_8));
+                    if (obj instanceof JSONObject) {
+                        JSONObject json = (JSONObject) obj;
+                        newTable = new HashMap<>(json);
+
+                        int responseCode = 200;
+                        sendResponse(exchange, failedJSON, responseCode);
+                    } else {
+                        System.err.println("Invalid JSON format in request body");
+                        sendResponse(exchange, failedJSON, 400);
+                    }
                 }
-            } catch (Exception e) {
+            } catch (IOException | ParseException e) {
                 e.printStackTrace();
                 sendResponse(exchange, failedJSON, 400);
+            }finally {
                 exchange.close();
             }
         }
