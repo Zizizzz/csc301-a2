@@ -76,6 +76,13 @@ public class UserPush {
         }
     }
 
+    private static boolean checkTableExists(Connection conn, String tableName) throws SQLException {
+        DatabaseMetaData dbm = conn.getMetaData();
+        try (ResultSet tables = dbm.getTables(null, null, tableName, null)) {
+            return tables.next();
+        }
+    }
+
     private static void pushNewTableToDB() {
         try {
             if (newTable != null && !newTable.isEmpty()) {
@@ -118,7 +125,6 @@ public class UserPush {
             try {
                 if ("POST".equals(exchange.getRequestMethod())) {
                     InputStream requestBody = exchange.getRequestBody();
-                    StringBuilder sb = new StringBuilder();
                     JSONObject json = new JSONObject(new JSONTokener(requestBody));
                     newTable = new HashMap<>(json.toMap());
                     int responseCode = 200;
