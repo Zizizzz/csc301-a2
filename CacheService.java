@@ -96,143 +96,39 @@ import org.json.simple.parser.*;
 
 import java.sql.*;
 
-public class OrderService {
-    private static Connection connection;
+public class CacheService {
+    private static Map<String, String[]> userServiceCache = new HashMap<>();
+    private static Map<String, String[]> productServiceCache = new HashMap<>();
+    private static Map<String, String[]> orderServiceCache = new HashMap<>();
     public static void main(String[] args) throws Exception {
-        if (args.length != 1){
-            System.out.println("Command: java OrderService <config file>");
-        }
-        else{
-            JSONObject config = readConfig(args[0]);
-            String addr = config.get("ip").toString();
-            int port = Integer.parseInt(config.get("port").toString());
+        String addr = args[0];
+        int port = Integer.parseInt(args[1]);
 
-            HttpServer server = HttpServer.create(new InetSocketAddress(addr, port), 0);
-            // Example: Set a custom executor with a fixed-size thread pool
-            server.setExecutor(Executors.newFixedThreadPool(20)); // Adjust the pool size as needed
-            server.createContext("/order", new PostHandler(config.get("us").toString(), config.get("ps").toString()));
-
-            server.createContext("/user", new UserHandler(config.get("us").toString()));
-            server.createContext("/product", new ProductHandler(config.get("ps").toString()));
-
-            connection = DriverManager.getConnection("jdbc:sqlite:./../../src/OrderService/OrderDB.sqlite");
-            initializeDatabase(connection);
+        HttpServer server = HttpServer.create(new InetSocketAddress(addr, port), 0);
+        // Example: Set a custom executor with a fixed-size thread pool
+        server.setExecutor(Executors.newFixedThreadPool(20)); // Adjust the pool size as needed
+        server.createContext("/order", new PostHandler());
+        server.createContext("/user", new UserHandler());
+        server.createContext("/product", new ProductHandler());
 
 
-            server.setExecutor(null); // creates a default executor
+        server.setExecutor(null); // creates a default executor
 
-            server.start();
+        server.start();
 
-            System.out.println("OrderServer started on port " + port);
-        }
-
-
-    }
-
-    private static void initializeDatabase(Connection conn) throws SQLException {
-        if (!checkTableExists(conn, "orders")) {
-            try (Statement stmt = conn.createStatement()) {
-                String sql = "CREATE TABLE orders (" +
-                        "id INTEGER PRIMARY KEY," +
-                        "product_id INTEGER NOT NULL," +
-                        "user_id INTEGER NOT NULL," +
-                        "quantity INTEGER NOT NULL)";
-                stmt.execute(sql);
-                System.out.println("Table 'orders' created.");
-            }
-            try (Statement stmt = conn.createStatement()) {
-                String sql = "CREATE TABLE orders1 (" +
-                        "id INTEGER PRIMARY KEY," +
-                        "product_id INTEGER NOT NULL," +
-                        "user_id INTEGER NOT NULL," +
-                        "quantity INTEGER NOT NULL)";
-                stmt.execute(sql);
-                System.out.println("Table 'orders1' created.");
-            }
-        }
-    }
-
-    private static void clearTableData(Connection conn, String tableName) throws SQLException {
-        String sql = "DELETE FROM " + tableName;
-        try (Statement stmt = conn.createStatement()) {
-            stmt.executeUpdate(sql);
-            System.out.println("Data cleared from table '" + tableName + "'.");
-        }
-    }
-    private static boolean move_table(Connection conn, String old_table, String new_table) throws SQLException {
-        if (isTableEmpty(connection, old_table)) {
-            // If old_table is empty, return "success" since there's nothing to move
-            return true;
-        }
-        String moveSql = "INSERT INTO " + new_table + " SELECT * FROM " + old_table;
-
-        try (PreparedStatement moveStatement = connection.prepareStatement(moveSql)) {
-            // Execute the SQL statement to move entities
-            int rowsAffected = moveStatement.executeUpdate();
-            return rowsAffected > 0;
-        }
-    }
-    private static boolean isTableEmpty(Connection connection, String table) throws SQLException {
-        // Construct SQL statement to count rows in the table
-        String countSql = "SELECT COUNT(*) FROM " + table;
-
-        try (PreparedStatement countStatement = connection.prepareStatement(countSql);
-             ResultSet resultSet = countStatement.executeQuery()) {
-            // Check if the count is 0 (table is empty)
-            return resultSet.next() && resultSet.getInt(1) == 0;
-        }
+        System.out.println("CacheServer started on port " + port);
         
+
+
     }
 
-    private static boolean checkTableExists(Connection conn, String tableName) throws SQLException {
-        DatabaseMetaData dbm = conn.getMetaData();
-        try (ResultSet tables = dbm.getTables(null, null, tableName, null)) {
-            return tables.next();
-        }
-    }
-
-    public static JSONObject readConfig(String path) throws Exception{
-        Object ob = new JSONParser().parse(new FileReader(path));
-
-        JSONObject js = (JSONObject) ob;
-        JSONObject orderService = (JSONObject)js.get("OrderService");
-        JSONObject us = (JSONObject)js.get("UserService");
-        String uString = "http://" + us.get("ip").toString() + ":" + us.get("port").toString() + "/user";
-        JSONObject ps = (JSONObject) js.get("ProductService");
-        String pString = "http://" + ps.get("ip").toString() + ":" + ps.get("port").toString() + "/product";
-        JSONObject iscs = (JSONObject) js.get("InterServiceCommunication");
-        String iString = "http://" + iscs.get("ip").toString() + ":" + iscs.get("port").toString();
-        orderService.put("us", uString);
-        orderService.put("ps", pString);
-        orderService.put("iscs", iString);
-
-        return orderService;
-    }
-    private static int getOrderAmount(){
+    private static int getOrderAmount(){  //改写
         int orderCount = 0;
         // Prepare the SQL query to count orders
-        String sql = "SELECT MAX(id) AS max_order_id FROM orders";
-
-        try (PreparedStatement preparedStatement = connection.prepareStatement(sql);
-             ResultSet resultSet = preparedStatement.executeQuery()) {
-
-            // Check if any result is returned
-            if (resultSet.next()) {
-                // Retrieve the max order ID
-                orderCount = resultSet.getInt("max_order_id");
-
-            }
-
-        } catch (SQLException e) {
-            e.printStackTrace();
-            // Handle database-related exceptions
-        }
         return orderCount;
     }
 
     static class PostHandler implements HttpHandler {
-        private static String upath;
-        private static String ppath;
 
         // Constructor that takes a string <UserService location> during initialization
         public PostHandler(String upath, String ppath) {
