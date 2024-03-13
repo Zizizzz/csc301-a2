@@ -82,7 +82,7 @@ public class LoadTest {
 		String host = "127.0.0.1";
 		int port;
 		//int numRequests = Integer.parseInt(args[2]);
-		int numRequests = 1000;
+		int numRequests = 2000;
 		String[] body;
 		String command;
 		JSONObject response;
@@ -167,8 +167,19 @@ public class LoadTest {
 			e.printStackTrace();
 		}
 		long endTime = System.currentTimeMillis(); // End timer
-		long duration = endTime - startTime;
-		System.out.println("Request Duration: " + duration + " ms");
+		long duration = (endTime - startTime) / 1000;
+		System.out.println("Request Duration: " + duration + " s");
+
+
+		long s1 = System.currentTimeMillis();
+		HashMap<Integer, String> map = new HashMap<>();
+		map.put(1, "abc");
+		for(int i=0;i<3000;i++){
+			System.out.println("Value for key 1: " + map.get(1));
+		}
+		long e1 = System.currentTimeMillis(); // End timer
+		long d1 = (e1 - s1) ;
+		System.out.println("Request aaa1000 Duration: " + d1 + " ms");
 	}
 
 	public static void post(String uri, String requestBody) throws Exception {
