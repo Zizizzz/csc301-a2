@@ -91,6 +91,7 @@ import java.security.NoSuchAlgorithmException;
 import java.util.*;
 import java.util.concurrent.Executors;
 
+import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.*;
 
@@ -122,6 +123,8 @@ public class CacheService {
         server.setExecutor(null); // creates a default executor
 
         server.start();
+
+        System.out.println("Start CacheService at http://" + addr + ":" + args[1]);
         Timer timer = new Timer();
         timer.schedule(new SendDataTask(), 5000, 5000);
     }
@@ -132,84 +135,72 @@ public class CacheService {
             try {
                 if (hasUserCache){
                     hasUserCache = false;
-                    JSONObject userCache = new JSONObject(userServiceCache);
-                    // Replace "YOUR_IP" and "YOUR_PORT" with the actual IP and port
-                    URL url = new URL("http://localhost:6768/userpush/");
-                    HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-                    conn.setRequestMethod("POST");
-                    conn.setDoOutput(true);
-
-                    // Set request headers
-                    conn.setRequestProperty("Content-Type", "application/json");
-
-                    // Write JSON data to the connection output stream
-                    OutputStream os = conn.getOutputStream();
-                    os.write(userCache.toString().getBytes());
-                    os.flush();
-                    os.close();
-
-                    // Check the response code
-                    int responseCode = conn.getResponseCode();
-                    if (responseCode == HttpURLConnection.HTTP_OK) {
-                        System.out.println("JSON sent successfully.");
-                    } else {
-                        System.out.println("Failed to send JSON. Response code: " + responseCode);
+                    JSONObject userCache = new JSONObject();
+                    for (Map.Entry<String, String[]> entry : userServiceCache.entrySet()) {
+                        String data = String.join(",", entry.getValue());
+                        userCache.put(entry.getKey(), data);
                     }
-                    conn.disconnect();
+                    URL url = new URL("http://142.1.46.112:6768/userpush/");
+
+                    HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+
+                    connection.setRequestMethod("POST");
+
+                    connection.setDoOutput(true);
+
+                    OutputStream outputStream = connection.getOutputStream();
+                    byte[] input = userCache.toString().getBytes(StandardCharsets.UTF_8);
+                    outputStream.write(input, 0, input.length);
+
+                    int responseCode = connection.getResponseCode();
+                    System.out.println("Response Code: " + responseCode);
+                    connection.disconnect();
                 }
                 if (hasProductCache){
                     hasProductCache = false;
-                    JSONObject productCache = new JSONObject(productServiceCache);
-                    // Replace "YOUR_IP" and "YOUR_PORT" with the actual IP and port
-                    URL url = new URL("http://localhost:6769/productpush/");
-                    HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-                    conn.setRequestMethod("POST");
-                    conn.setDoOutput(true);
-
-                    // Set request headers
-                    conn.setRequestProperty("Content-Type", "application/json");
-
-                    // Write JSON data to the connection output stream
-                    OutputStream os = conn.getOutputStream();
-                    os.write(productCache.toString().getBytes());
-                    os.flush();
-                    os.close();
-
-                    // Check the response code
-                    int responseCode = conn.getResponseCode();
-                    if (responseCode == HttpURLConnection.HTTP_OK) {
-                        System.out.println("JSON sent successfully.");
-                    } else {
-                        System.out.println("Failed to send JSON. Response code: " + responseCode);
+                    JSONObject productCache = new JSONObject();
+                    for (Map.Entry<String, String[]> entry : productServiceCache.entrySet()) {
+                        String data = String.join(",", entry.getValue());
+                        productCache.put(entry.getKey(), data);
                     }
-                    conn.disconnect();
+                    URL url = new URL("http://142.1.46.112:6769/productpush/");
+
+                    HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+
+                    connection.setRequestMethod("POST");
+
+                    connection.setDoOutput(true);
+
+                    OutputStream outputStream = connection.getOutputStream();
+                    byte[] input = productCache.toString().getBytes(StandardCharsets.UTF_8);
+                    outputStream.write(input, 0, input.length);
+
+                    int responseCode = connection.getResponseCode();
+                    System.out.println("Response Code: " + responseCode);
+                    connection.disconnect();
                 }
                 if (hasOrderCache){
                     hasOrderCache = false;
-                    JSONObject orderCache = new JSONObject(orderServiceCache);
-                    // Replace "YOUR_IP" and "YOUR_PORT" with the actual IP and port
-                    URL url = new URL("http://localhost:6770/orderpush/");
-                    HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-                    conn.setRequestMethod("POST");
-                    conn.setDoOutput(true);
-
-                    // Set request headers
-                    conn.setRequestProperty("Content-Type", "application/json");
-
-                    // Write JSON data to the connection output stream
-                    OutputStream os = conn.getOutputStream();
-                    os.write(orderCache.toString().getBytes());
-                    os.flush();
-                    os.close();
-
-                    // Check the response code
-                    int responseCode = conn.getResponseCode();
-                    if (responseCode == HttpURLConnection.HTTP_OK) {
-                        System.out.println("JSON sent successfully.");
-                    } else {
-                        System.out.println("Failed to send JSON. Response code: " + responseCode);
+                    JSONObject orderCache = new JSONObject();
+                    for (Map.Entry<String, String[]> entry : orderServiceCache.entrySet()) {
+                        String data = String.join(",", entry.getValue());
+                        orderCache.put(entry.getKey(), data);
                     }
-                    conn.disconnect();
+                    URL url = new URL("http://142.1.46.112:6770/orderpush/");
+
+                    HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+
+                    connection.setRequestMethod("POST");
+
+                    connection.setDoOutput(true);
+
+                    OutputStream outputStream = connection.getOutputStream();
+                    byte[] input = orderCache.toString().getBytes(StandardCharsets.UTF_8);
+                    outputStream.write(input, 0, input.length);
+
+                    int responseCode = connection.getResponseCode();
+                    System.out.println("Response Code: " + responseCode);
+                    connection.disconnect();
                 }
 
             } catch (Exception e) {
@@ -357,17 +348,6 @@ public class CacheService {
     static class UserHandler implements HttpHandler {
 
         // Constructor that takes a string <UserService location> during initialization
-        private static final String EMAIL_PATTERN =
-                "^[a-zA-Z0-9_+&*-]+(?:\\.[a-zA-Z0-9_+&*-]+)*@(?:[a-zA-Z0-9-]+\\.)+[a-zA-Z]{2,7}$";
-
-        public static boolean isValidEmail(String email) {
-            Pattern pattern = Pattern.compile(EMAIL_PATTERN);
-            if (email == null) {
-                return false;
-            }
-            Matcher matcher = pattern.matcher(email);
-            return matcher.matches();
-        }
 
         @Override
         public void handle(HttpExchange exchange) {
@@ -538,7 +518,7 @@ public class CacheService {
             String password = hashPassword(requestData.get("password").toString());
 
             // Validate the user data
-            if (username.isEmpty() || !isValidEmail(email) ||
+            if (username.isEmpty() ||
                     password.isEmpty() || Integer.parseInt(userId) < 0) {
                 return 400;
             }
@@ -572,7 +552,7 @@ public class CacheService {
                 if (requestData.get("email") != null) {
                     String email = requestData.get("email").toString();
 
-                    if (!isValidEmail(email)) {
+                    if (email.isEmpty()) {
                         return 400;
                     }
                     newUser[1] = email;
