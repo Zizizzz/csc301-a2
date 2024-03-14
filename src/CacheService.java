@@ -134,7 +134,7 @@ public class CacheService {
                     hasUserCache = false;
                     JSONObject userCache = new JSONObject(userServiceCache);
                     // Replace "YOUR_IP" and "YOUR_PORT" with the actual IP and port
-                    URL url = new URL("http://YOUR_IP:YOUR_PORT");
+                    URL url = new URL("http://localhost:6768/userpush/");
                     HttpURLConnection conn = (HttpURLConnection) url.openConnection();
                     conn.setRequestMethod("POST");
                     conn.setDoOutput(true);
@@ -161,7 +161,7 @@ public class CacheService {
                     hasProductCache = false;
                     JSONObject productCache = new JSONObject(productServiceCache);
                     // Replace "YOUR_IP" and "YOUR_PORT" with the actual IP and port
-                    URL url = new URL("http://YOUR_IP:YOUR_PORT");
+                    URL url = new URL("http://localhost:6769/productpush/");
                     HttpURLConnection conn = (HttpURLConnection) url.openConnection();
                     conn.setRequestMethod("POST");
                     conn.setDoOutput(true);
@@ -188,7 +188,7 @@ public class CacheService {
                     hasOrderCache = false;
                     JSONObject orderCache = new JSONObject(orderServiceCache);
                     // Replace "YOUR_IP" and "YOUR_PORT" with the actual IP and port
-                    URL url = new URL("http://YOUR_IP:YOUR_PORT");
+                    URL url = new URL("http://localhost:6770/orderpush/");
                     HttpURLConnection conn = (HttpURLConnection) url.openConnection();
                     conn.setRequestMethod("POST");
                     conn.setDoOutput(true);
@@ -226,7 +226,6 @@ public class CacheService {
         // Constructor that takes a string <UserService location> during initialization
         @Override
         public void handle(HttpExchange exchange){
-            hasOrderCache = true;
             JSONObject failedResponseData = new JSONObject();
             try {
                 // Handle POST request for /order
@@ -349,7 +348,7 @@ public class CacheService {
 
             String[] newOrder = {userId,productId,requestData.get("quantity").toString()};
             orderServiceCache.put(Integer.toString(orderId), newOrder);
-
+            hasOrderCache = true;
             return responseCode;
         }
 
@@ -372,7 +371,6 @@ public class CacheService {
 
         @Override
         public void handle(HttpExchange exchange) {
-            hasUserCache = true;
             String failedJSON = "{}";
             // Handle post request for /user
             try {
@@ -409,6 +407,7 @@ public class CacheService {
                                 exchange.close();
                                 break;
                             } else {
+                                hasUserCache = true;
                                 Map<String, String> fullUserInfo = handleGetUser(requestData.get("id").toString());
                                 sendResponse(exchange, fullUserInfo.get("data"), Integer.parseInt(fullUserInfo.get("code")));
                                 exchange.close();
@@ -429,6 +428,7 @@ public class CacheService {
                                 sendResponse(exchange, failedJSON, responseCode);
                                 exchange.close();
                             } else {
+                                hasUserCache = true;
                                 Map<String, String> fullUserInfo = handleGetUser(requestData.get("id").toString());
                                 sendResponse(exchange, fullUserInfo.get("data"), Integer.parseInt(fullUserInfo.get("code")));
                                 exchange.close();
@@ -600,6 +600,7 @@ public class CacheService {
 
             if (exist == 0) {
                 userServiceCache.remove(userId);
+                hasUserCache = true;
                 return 200;
             } else if (exist == 1) {
                 //User data didn't match
@@ -679,7 +680,6 @@ public class CacheService {
         // Constructor that takes a string input during initialization
         @Override
         public void handle(HttpExchange exchange) {
-            hasProductCache = true;
             String failedJSON = "{}";
             try {
                 // Handle POST request for /product
@@ -722,6 +722,7 @@ public class CacheService {
                                 exchange.close();
                                 break;
                             } else {
+                                hasProductCache = true;
                                 Map<String, String> fullProductInfo = handleGetProduct(requestData.get("id").toString());
                                 sendResponse(exchange, fullProductInfo.get("data"), Integer.parseInt(fullProductInfo.get("code")));
                                 exchange.close();
@@ -746,6 +747,7 @@ public class CacheService {
                                 exchange.close();
                                 break;
                             } else {
+                                hasProductCache = true;
                                 Map<String, String> fullProductInfo = handleGetProduct(requestData.get("id").toString());
                                 sendResponse(exchange, fullProductInfo.get("data"), Integer.parseInt(fullProductInfo.get("code")));
                                 exchange.close();
@@ -899,6 +901,7 @@ public class CacheService {
             }
 
             productServiceCache.remove(productId);
+            hasProductCache = true;
             return 200;
         }
 

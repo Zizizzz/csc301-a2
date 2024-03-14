@@ -26,7 +26,7 @@ public class ProductPush {
     private static HashMap<String, String[]> newTable;
 
     public static void main(String[] args) throws Exception {
-        String addr = "196.144.23.190";
+        String addr = "127.0.0.1";
         int port = 6769;
         HttpServer server = HttpServer.create(new InetSocketAddress(addr, port), 0);
         // Example: Set a custom executor with a fixed-size thread pool
@@ -34,7 +34,7 @@ public class ProductPush {
         // Set up context for /user POST request
         server.createContext("/productpush", new ProductPushHandler());
 
-        connection = DriverManager.getConnection("jdbc:sqlite:./../../src/ProductService/ProductDB.sqlite");
+        connection = DriverManager.getConnection("jdbc:sqlite:./ProductDB.sqlite");
         initializeDatabase(connection);
 
         server.setExecutor(null); // creates a default executor
@@ -128,6 +128,7 @@ public class ProductPush {
             try {
                 if ("POST".equals(exchange.getRequestMethod())) {
                     InputStream requestBody = exchange.getRequestBody();
+                    System.out.println(requestBody);
                     JSONParser parser = new JSONParser();
                     Object obj = parser.parse(new InputStreamReader(requestBody, StandardCharsets.UTF_8));
                     if (obj instanceof JSONObject) {
