@@ -1,31 +1,28 @@
 package UserService;
-
 import com.sun.net.httpserver.HttpServer;
 import com.sun.net.httpserver.HttpHandler;
 import com.sun.net.httpserver.HttpExchange;
-
 import java.io.*;
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
-
-import java.util.HashMap;
-import java.util.Map;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
-
 import org.json.simple.JSONObject;
 import org.json.simple.parser.*;
-
+import java.io.IOException;
+import java.io.InputStream;
 import java.sql.*;
 
 public class UserPush {
     private static Connection connection;
     private static byte[] salt;
-    private static HashMap<String, String[]> newTable;
+//  private static HashMap<String, String[]> newTable;
+    private static JSONObject newTable= new JSONObject();
 
     public static void main(String[] args) throws Exception {
-        String addr = "127.0.0.1";
+        final int[] i = {0};
+        String addr = "142.1.46.112";
         int port = 6768;
         HttpServer server = HttpServer.create(new InetSocketAddress(addr, port), 0);
         // Example: Set a custom executor with a fixed-size thread pool
@@ -43,11 +40,15 @@ public class UserPush {
         scheduler.scheduleAtFixedRate(new Runnable() {
             @Override
             public void run() {
-                if (newTable != null && !newTable.isEmpty()) {
+                System.out.println("Server Running" + i[0]);
+                i[0] = i[0] +1;
+                sql_print("users", "jdbc:sqlite:./UserDB.sqlite");
+                if (!newTable.isEmpty()) {
+                    System.out.println("Called helper to push to DB");
                     pushNewTableToDB();
                 }
             }
-        }, 0, 5, TimeUnit.SECONDS);
+        }, 0, 2, TimeUnit.SECONDS);
 
         server.start();
 
@@ -85,29 +86,31 @@ public class UserPush {
 
     private static void pushNewTableToDB() {
         try {
-            if (newTable != null && !newTable.isEmpty()) {
+            if (!newTable.isEmpty()) {
+                System.out.println("Table is not empty I will call clean DB table helper");
                 clearTableData(connection, "users");
-                for (Map.Entry<String, String[]> entry : newTable.entrySet()) {
-                    String key = entry.getKey();
-                    int id = Integer.parseInt(key);
-                    String[] value = entry.getValue();
+                for (Object key: newTable.keySet()){
+                    int id = Integer.parseInt(key.toString());
+                    Object value = newTable.get(key);
+                    String[] values = value.toString().split(",");
 
-                    if (value.length >= 3) {
-                        String name = value[0];
-                        String email = value[1];
-                        String password = value[2];
+                    if (values.length >= 3) {
+                        String name = values[0];
+                        String email = values[1];
+                        String password = values[2];
 
                         String sql = "INSERT INTO users (id, username, email, password) VALUES (?, ?, ?, ?)";
                         try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
                             pstmt.setInt(1, id);
-                            pstmt.setString(1, name);
-                            pstmt.setString(2, email);
-                            pstmt.setString(3, password);
+                            pstmt.setString(2, name);
+                            pstmt.setString(3, email);
+                            pstmt.setString(4, password);
                             pstmt.executeUpdate();
                             System.out.println("Inserted: Id = " + id +", Name = " + name + ", Email = " + email + ", Password = " + password);
+                            sql_print("users","jdbc:sqlite:./UserDB.sqlite");
                         }
                     } else {
-                        System.err.println("Invalid array length for key: " + key);
+                        System.out.println("Invalid array length for key: " + key);
                     }
                 }
                 // Clear the newTable only after all entries have been processed
@@ -118,6 +121,34 @@ public class UserPush {
         }
     }
 
+    public static void sql_print(String table, String JDBC_URL) {
+        try (Connection connection = DriverManager.getConnection(JDBC_URL)) {
+            String selectSql = "SELECT * FROM " + table;
+
+            try (Statement selectStatement = connection.createStatement();
+                 ResultSet resultSet = selectStatement.executeQuery(selectSql)) {
+
+                ResultSetMetaData metaData = resultSet.getMetaData();
+                int columnCount = metaData.getColumnCount();
+
+                // Print column headers
+                for (int i = 1; i <= columnCount; i++) {
+                    System.out.print(metaData.getColumnName(i) + "\t");
+                }
+                System.out.println();
+
+                // Print data
+                while (resultSet.next()) {
+                    for (int i = 1; i <= columnCount; i++) {
+                        System.out.print(resultSet.getString(i) + "\t");
+                    }
+                    System.out.println();
+                }
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
     static class UserPushHandler implements HttpHandler {
         @Override
         public void handle(HttpExchange exchange) {
@@ -126,17 +157,10 @@ public class UserPush {
                 if ("POST".equals(exchange.getRequestMethod())) {
                     InputStream requestBody = exchange.getRequestBody();
                     JSONParser parser = new JSONParser();
-                    Object obj = parser.parse(new InputStreamReader(requestBody, StandardCharsets.UTF_8));
-                    if (obj instanceof JSONObject) {
-                        JSONObject json = (JSONObject) obj;
-                        newTable = new HashMap<>(json);
-
-                        int responseCode = 200;
-                        sendResponse(exchange, failedJSON, responseCode);
-                    } else {
-                        System.err.println("Invalid JSON format in request body");
-                        sendResponse(exchange, failedJSON, 400);
-                    }
+                    JSONObject requestData = (JSONObject) parser.parse(new String(requestBody.readAllBytes()));
+                    newTable = requestData;
+                    int responseCode = 200;
+                    sendResponse(exchange, failedJSON, responseCode);
                 }
             } catch (IOException | ParseException e) {
                 e.printStackTrace();
