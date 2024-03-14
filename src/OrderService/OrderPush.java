@@ -1,32 +1,26 @@
 package OrderService;
-
-import com.sun.net.httpserver.HttpExchange;
-import com.sun.net.httpserver.HttpHandler;
 import com.sun.net.httpserver.HttpServer;
-import org.json.simple.JSONObject;
-import org.json.simple.parser.JSONParser;
-import org.json.simple.parser.ParseException;
-
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.io.OutputStream;
+import com.sun.net.httpserver.HttpHandler;
+import com.sun.net.httpserver.HttpExchange;
+import java.io.*;
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
-import java.sql.*;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
-
+import org.json.simple.JSONObject;
+import org.json.simple.parser.*;
+import java.io.IOException;
+import java.io.InputStream;
+import java.sql.*;
 public class OrderPush {
     private static Connection connection;
     private static byte[] salt;
-    private static HashMap<String, String[]> newTable;
+    private static JSONObject newTable= new JSONObject();
 
     public static void main(String[] args) throws Exception {
-        String addr = "127.0.0.1";
+        final int[] i = {0};
+        String addr = "142.1.46.112";
         int port = 6770;
         HttpServer server = HttpServer.create(new InetSocketAddress(addr, port), 0);
         // Example: Set a custom executor with a fixed-size thread pool
@@ -44,11 +38,15 @@ public class OrderPush {
         scheduler.scheduleAtFixedRate(new Runnable() {
             @Override
             public void run() {
-                if (newTable != null && !newTable.isEmpty()) {
+                System.out.println("Server Running" + i[0]);
+                i[0] = i[0] +1;
+                sql_print("orders", "jdbc:sqlite:./OrderDB.sqlite");
+                if (!newTable.isEmpty()) {
+                    System.out.println("Called helper to push to DB");
                     pushNewTableToDB();
                 }
             }
-        }, 0, 5, TimeUnit.SECONDS);
+        }, 0, 2, TimeUnit.SECONDS);
 
         server.start();
 
@@ -86,26 +84,28 @@ public class OrderPush {
 
     private static void pushNewTableToDB() {
         try {
-            if (newTable != null && !newTable.isEmpty()) {
+            if (!newTable.isEmpty()) {
+                System.out.println("Table is not empty I will call clean DB table helper");
                 clearTableData(connection, "orders");
-                for (Map.Entry<String, String[]> entry : newTable.entrySet()) {
-                    String key = entry.getKey();
-                    int orderid = Integer.parseInt(key);
-                    String[] value = entry.getValue();
+                for (Object key: newTable.keySet()){
+                    int id = Integer.parseInt(key.toString());
+                    Object value = newTable.get(key);
+                    String[] values = value.toString().split(",");
 
-                    if (value.length >= 3) {
-                        int userid = Integer.parseInt(value[0]);
-                        int productid = Integer.parseInt(value[1]);
-                        int quantity = Integer.parseInt(value[2]);
+                    if (values.length >= 3) {
+                        int userid = Integer.parseInt(values[0]);
+                        int productid = Integer.parseInt(values[1]);
+                        int quantity = Integer.parseInt(values[2]);
 
                         String sql = "INSERT INTO orders (id, user_id, product_id, quantity) VALUES (?, ?, ?, ?)";
                         try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
-                            pstmt.setInt(1, orderid);
-                            pstmt.setInt(1, userid);
-                            pstmt.setInt(2, productid);
-                            pstmt.setInt(3, quantity);
+                            pstmt.setInt(1, id);
+                            pstmt.setInt(2, userid);
+                            pstmt.setInt(3, productid);
+                            pstmt.setInt(4, quantity);
                             pstmt.executeUpdate();
-                            System.out.println("Inserted: Id = " + orderid +", userid = " + userid + ", productid = " + productid + ", quantity = " + quantity);
+                            System.out.println("Inserted: Id = " + id +", userid = " + userid + ", productid = " + productid + ", quantity = " + quantity);
+                            sql_print("orders","jdbc:sqlite:./OrderDB.sqlite");
                         }
                     } else {
                         System.err.println("Invalid array length for key: " + key);
@@ -113,6 +113,35 @@ public class OrderPush {
                 }
                 // Clear the newTable only after all entries have been processed
                 newTable.clear();
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public static void sql_print(String table, String JDBC_URL) {
+        try (Connection connection = DriverManager.getConnection(JDBC_URL)) {
+            String selectSql = "SELECT * FROM " + table;
+
+            try (Statement selectStatement = connection.createStatement();
+                 ResultSet resultSet = selectStatement.executeQuery(selectSql)) {
+
+                ResultSetMetaData metaData = resultSet.getMetaData();
+                int columnCount = metaData.getColumnCount();
+
+                // Print column headers
+                for (int i = 1; i <= columnCount; i++) {
+                    System.out.print(metaData.getColumnName(i) + "\t");
+                }
+                System.out.println();
+
+                // Print data
+                while (resultSet.next()) {
+                    for (int i = 1; i <= columnCount; i++) {
+                        System.out.print(resultSet.getString(i) + "\t");
+                    }
+                    System.out.println();
+                }
             }
         } catch (SQLException e) {
             e.printStackTrace();
@@ -127,17 +156,10 @@ public class OrderPush {
                 if ("POST".equals(exchange.getRequestMethod())) {
                     InputStream requestBody = exchange.getRequestBody();
                     JSONParser parser = new JSONParser();
-                    Object obj = parser.parse(new InputStreamReader(requestBody, StandardCharsets.UTF_8));
-                    if (obj instanceof JSONObject) {
-                        JSONObject json = (JSONObject) obj;
-                        newTable = new HashMap<>(json);
-
-                        int responseCode = 200;
-                        sendResponse(exchange, failedJSON, responseCode);
-                    } else {
-                        System.err.println("Invalid JSON format in request body");
-                        sendResponse(exchange, failedJSON, 400);
-                    }
+                    JSONObject requestData = (JSONObject) parser.parse(new String(requestBody.readAllBytes()));
+                    newTable = requestData;
+                    int responseCode = 200;
+                    sendResponse(exchange, failedJSON, responseCode);
                 }
             } catch (IOException | ParseException e) {
                 e.printStackTrace();
