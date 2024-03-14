@@ -88,9 +88,7 @@ import java.nio.charset.StandardCharsets;
 
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Objects;
+import java.util.*;
 import java.util.concurrent.Executors;
 
 import org.json.simple.JSONObject;
@@ -104,6 +102,11 @@ public class CacheService {
     private static Map<String, String[]> userServiceCache = new HashMap<>();
     private static Map<String, String[]> productServiceCache = new HashMap<>();
     private static Map<String, String[]> orderServiceCache = new HashMap<>();
+
+    private static boolean hasUserCache = false;
+    private static boolean hasProductCache = false;
+    private static boolean hasOrderCache = false;
+
     public static void main(String[] args) throws Exception {
         String addr = args[0];
         int port = Integer.parseInt(args[1]);
@@ -119,9 +122,101 @@ public class CacheService {
         server.setExecutor(null); // creates a default executor
 
         server.start();
-
+        Timer timer = new Timer();
+        timer.schedule(new SendDataTask(), 5000, 5000);
     }
 
+    static class SendDataTask extends TimerTask {
+        @Override
+        public void run() {
+            try {
+                if (hasUserCache){
+                    hasUserCache = false;
+                    JSONObject userCache = new JSONObject(userServiceCache);
+                    // Replace "YOUR_IP" and "YOUR_PORT" with the actual IP and port
+                    URL url = new URL("http://YOUR_IP:YOUR_PORT");
+                    HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+                    conn.setRequestMethod("POST");
+                    conn.setDoOutput(true);
+
+                    // Set request headers
+                    conn.setRequestProperty("Content-Type", "application/json");
+
+                    // Write JSON data to the connection output stream
+                    OutputStream os = conn.getOutputStream();
+                    os.write(userCache.toString().getBytes());
+                    os.flush();
+                    os.close();
+
+                    // Check the response code
+                    int responseCode = conn.getResponseCode();
+                    if (responseCode == HttpURLConnection.HTTP_OK) {
+                        System.out.println("JSON sent successfully.");
+                    } else {
+                        System.out.println("Failed to send JSON. Response code: " + responseCode);
+                    }
+                    conn.disconnect();
+                }
+                if (hasProductCache){
+                    hasProductCache = false;
+                    JSONObject productCache = new JSONObject(productServiceCache);
+                    // Replace "YOUR_IP" and "YOUR_PORT" with the actual IP and port
+                    URL url = new URL("http://YOUR_IP:YOUR_PORT");
+                    HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+                    conn.setRequestMethod("POST");
+                    conn.setDoOutput(true);
+
+                    // Set request headers
+                    conn.setRequestProperty("Content-Type", "application/json");
+
+                    // Write JSON data to the connection output stream
+                    OutputStream os = conn.getOutputStream();
+                    os.write(productCache.toString().getBytes());
+                    os.flush();
+                    os.close();
+
+                    // Check the response code
+                    int responseCode = conn.getResponseCode();
+                    if (responseCode == HttpURLConnection.HTTP_OK) {
+                        System.out.println("JSON sent successfully.");
+                    } else {
+                        System.out.println("Failed to send JSON. Response code: " + responseCode);
+                    }
+                    conn.disconnect();
+                }
+                if (hasOrderCache){
+                    hasOrderCache = false;
+                    JSONObject orderCache = new JSONObject(orderServiceCache);
+                    // Replace "YOUR_IP" and "YOUR_PORT" with the actual IP and port
+                    URL url = new URL("http://YOUR_IP:YOUR_PORT");
+                    HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+                    conn.setRequestMethod("POST");
+                    conn.setDoOutput(true);
+
+                    // Set request headers
+                    conn.setRequestProperty("Content-Type", "application/json");
+
+                    // Write JSON data to the connection output stream
+                    OutputStream os = conn.getOutputStream();
+                    os.write(orderCache.toString().getBytes());
+                    os.flush();
+                    os.close();
+
+                    // Check the response code
+                    int responseCode = conn.getResponseCode();
+                    if (responseCode == HttpURLConnection.HTTP_OK) {
+                        System.out.println("JSON sent successfully.");
+                    } else {
+                        System.out.println("Failed to send JSON. Response code: " + responseCode);
+                    }
+                    conn.disconnect();
+                }
+
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
+    }
     private static int getOrderAmount(){
         return orderServiceCache.size();
     }
@@ -131,6 +226,7 @@ public class CacheService {
         // Constructor that takes a string <UserService location> during initialization
         @Override
         public void handle(HttpExchange exchange){
+            hasOrderCache = true;
             JSONObject failedResponseData = new JSONObject();
             try {
                 // Handle POST request for /order
@@ -276,6 +372,7 @@ public class CacheService {
 
         @Override
         public void handle(HttpExchange exchange) {
+            hasUserCache = true;
             String failedJSON = "{}";
             // Handle post request for /user
             try {
@@ -406,32 +503,25 @@ public class CacheService {
         private static Map<String, String> handleGetOrder(String userId) {
             Map<String, String> response = new HashMap<>();
             JSONObject responseData = new JSONObject();
-            boolean userExists = false;
-            boolean userHasPurchases = false;
+            String responseCode = "200";
 
+            if (!userServiceCache.containsKey(userId)){
+                responseCode = "400";
+            }
             for (Map.Entry<String, String[]> entry : orderServiceCache.entrySet()) {
                 String[] orderDetails = entry.getValue();
                 // Assuming orderDetails[0] is userId, orderDetails[1] is productId, and orderDetails[2] is quantity
                 if ((userId).equals(orderDetails[0])) {
-                    userExists = true;
                     String productId = orderDetails[1];
                     int quantity = Integer.parseInt(orderDetails[2]);
                     // Update the quantity for the productId, if already exists; else add it with the current quantity
                     responseData.put(productId, Integer.parseInt(responseData.getOrDefault(productId,
                             0).toString()) + quantity);
-                    userHasPurchases = true;
                 }
             }
 
             // Set response code based on user existence and purchases
-            String responseCode = "200"; // Default response code
-            if (!userExists) {
-                responseCode = "404"; // User ID does not exist
-                responseData = new JSONObject(); // Ensure responseData is empty
-            } else if (!userHasPurchases) {
-                // User exists but has no purchases, return empty JSON {}
-                responseData = new JSONObject(); // Ensure responseData is empty
-            }
+             // Default response code
 
             // Prepare the response
             response.put("data", responseData.toJSONString());
@@ -589,6 +679,7 @@ public class CacheService {
         // Constructor that takes a string input during initialization
         @Override
         public void handle(HttpExchange exchange) {
+            hasProductCache = true;
             String failedJSON = "{}";
             try {
                 // Handle POST request for /product
