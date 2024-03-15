@@ -448,9 +448,9 @@ public class OrderService {
                     String path = exchange.getRequestURI().getPath();
                     String[] pathSegments = path.split("/");
                     if (pathSegments.length >= 3){
-                        if (Objects.equals(pathSegments[2], "purchase")){
+                        if (Objects.equals(pathSegments[2], "purchased")){
                             if (pathSegments.length != 4){
-                                System.out.println("Wrong purchase url: user id missing.");
+                                System.out.println("Wrong purchased url: user id missing.");
                                 sendResponse(exchange, failedJSON, 400);
                                 exchange.close();
                             } else{
