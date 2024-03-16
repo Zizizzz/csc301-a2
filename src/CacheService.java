@@ -440,7 +440,7 @@ public class CacheService {
                     String path = exchange.getRequestURI().getPath();
                     String[] pathSegments = path.split("/");
                     if (pathSegments.length >= 3) {
-                        if (Objects.equals(pathSegments[2], "purchase")) {
+                        if (Objects.equals(pathSegments[2], "purchased")) {
                             if (pathSegments.length != 4) {
                                 sendResponse(exchange, failedJSON, 400);
                                 exchange.close();
@@ -500,7 +500,7 @@ public class CacheService {
                 }
             }
 
-            // Set response code based on user existence and purchases
+            // Set response code based on user existence and purchaseds
              // Default response code
 
             // Prepare the response
